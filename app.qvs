@@ -1,31 +1,164 @@
+SET ThousandSep=' ';
+SET DecimalSep=',';
+SET MoneyThousandSep=' ';
+SET MoneyDecimalSep=',';
+SET MoneyFormat='# ##0,00 ₽;-# ##0,00 ₽';
+SET TimeFormat='h:mm:ss';
+SET DateFormat='DD.MM.YYYY';
+SET TimestampFormat='DD.MM.YYYY h:mm:ss[.fff]';
+SET FirstWeekDay=0;
+SET BrokenWeeks=1;
+SET ReferenceDay=0;
+SET FirstMonthOfYear=1;
+SET CollationLocale='ru-RU';
+SET CreateSearchIndexOnReload=1;
+SET MonthNames='янв;фев;мар;апр;май;июн;июл;авг;сен;окт;ноя;дек';
+SET LongMonthNames='январь;февраль;март;апрель;май;июнь;июль;август;сентябрь;октябрь;ноябрь;декабрь';
+SET DayNames='пн;вт;ср;чт;пт;сб;вс';
+SET LongDayNames='понедельник;вторник;среда;четверг;пятница;суббота;воскресенье';
+SET NumericalAbbreviation='3:k;6:M;9:G;12:T;15:P;18:E;21:Z;24:Y;-3:m;-6:μ;-9:n;-12:p;-15:f;-18:a;-21:z;-24:y';
+NullAsValue *; Set NullValue = '';
+
+SUB calendar(begdate, enddate);
+	[Календарь]:
+	LOAD 1																								as [Календарь],
+		Year(Date) 																					as [Год],
+		Year(Date) &' '& Dual(Month(Date), Month(Date))												as [Год Месяц],
+		Dual(Month(Date), 	Month(Date)) 																as [Месяц],
+		Num(Month(Date)) 																				as [МесяцНомер],
+		Year(Date) & ' ' & Num(Week(Date), '00')														as [Год Неделя],
+		Ceil((Day(Date) + WeekDay(MonthStart(Date)) - 1) / 7) & ' w'									as [Неделя],
+		Dual(WeekDay(Date), WeekDay(Date)) 															as [День недели],
+		Day(Date) 																						as [Число],
+		Date																							as [Дата];
+	LOAD Date('$(begdate)' + IterNo() - 1) as [Date] AutoGenerate 1 While Date('$(begdate)' + IterNo() - 1) < YearEnd(AddMonths(Today(), 3)); 
+ENDSUB
+
+SUB drop(vars);
+	vars = Chr(39) & Replace(vars, ',', Chr(39) & ',' & Chr(39)) & Chr(39); FOR Each var in $(vars); LET [$(var)] = Null(); NEXT; LET var = Null(); 
+ENDSUB
+
+SUB process_e;
+
+	set e = $(e) 
+	>>>>>>>>>>>>>>>>>>>>>>>>>>> /get/
+	Trim(SubField(SubField(Chr(10) & vParams & Chr(10), Chr(10) & '@1=', 2), Chr(10), 1))
+
+	>>>>>>>>>>>>>>>>>>>>>>>>>>> /set/
+	Trim(Replace(Chr(10) & vParams, Chr(10) & '@1=' & SubField(SubField(Chr(10) & vParams & Chr(10), Chr(10) & '@1=', 2), Chr(10), 1), Chr(10) & '@1=@2'))
+
+	>>>>>>>>>>>>>>>>>>>>>>>>>>> /Selected/
+	=Index('|'& GetFieldSelections([@1], '|', 100) &'|', '|@2|') and GetSelectedCount([@1])
+	;
+	
+	Set p 	= Trim(SubField(SubField(e, '/Params/', 2), '>>'));																											// parameters
+	Set f 	= Trim(SubField(SubField(e, '/Fields/', 2), '>>'));																											// весь блок Fields из e
+	Set v 	= SubField(Trim(SubField(SubField($(f), Upper(Mid('$1', 1, 1) & Mid('$1', 3, 1)) & ':', 2), Chr(10), 1)), ',', Mid('$1', 4, 2));							// значение из f по аргументу 
+	Set v 	= $|(=Pick(WildMatch(Lower(Mid('$1', 1, 1)), 'i', 's', '*'), Trim(SubField(SubField(e, '/'& Upper('$1') &'/', 2), '>>')),
+				Pick(WildMatch(Lower(Mid('$1', 2, 1)), 'l', 'c'), Trim(SubField(SubField(Trim(SubField(SubField(e, '/Sheets/', 2), '>>')), Right('$1', 1) & ':', 2), '::', 1)),
+																	Trim(SubField(SubField(Trim(SubField(SubField(e, '/Sheets/', 2), '>>')), Right('$1', 1) & ':', 2), '::', 2))),
+				Pick(Match(Lower(Mid('$1', 2, 1)), 'l', 'c', 'e', 'b', 'f', 't'), 
+						''''& $(v) &'''', //If($(l), ''''& $(v) &'''', $(v)), 
+						Replace(Replace(Trim(SubField(SubField(e,  '/Selected/', 2), '>>')), '[@1', '['& Upper(Mid('$1', 1, 1) & Mid('$1', 3, 1))), '@2', $(v)), 	
+					//	SubField(SubField(		   SubField(e, '/' & $(v) & '/', 2), '>>'), 					'==') &'/@/['& $(v) &']', 								// добавил v в me и de через /@/ (нельзя без табилцы переменных)
+						SubField(SubField( RangeMaxString(SubField(e, '/{' & Mid('$1', 3, 1) & '} ' & $(v) & '/', 2), SubField(e, '/' & $(v) & '/', 2)), '>>'), '==') &'/@/['& $(v) &']', 							// добавил v в me и de через /@/ (нельзя без табилцы переменных)
+						SubField(SubField(SubField(SubField(e, '/' & $(v) & '/', 2), '>>'), '/Background/', 2), '=='),
+						SubField(SubField(SubField(SubField(e, '/' & $(v) & '/', 2), '>>'), '/Foreground/', 2), '=='),
+						SubField(SubField(SubField(SubField(e, '/' & $(v) & '/', 2), '>>'), '/Total/', 		2), '==')
+						)));
+
+	// ====================== Поля
+	For i = 1 to SubStringCount($(f), Chr(10)) + 1; 
+		j = Trim(SubField($(f), Chr(10), i)); k = SubField(j, ':', 1);
+		IF Len(Trim(k))> 0 THEN; 
+			IF WildMatch(k, 'm*', 'd*') THEN; set fields = $(fields), '$(k)'; ENDIF
+			[$(k)]: LOAD *, RecNo() as [N$(k)] Where Len(Trim([$(k)])) > 0; LOAD SubField(SubField(Mid('$(j)', Index('$(j)', ':', 1) +1), '//', 1), ',') as [$(k)] AutoGenerate 1; Tag Field [$(k)] With $hidden; 						//Dual([$(k)], RecNo()) as [$(k)]
+		ENDIF; 
+	Next; 
+	
+	Set ErrorMode=0; Drop Field [ ]; Set ErrorMode=1;
+	
+	// ====================== Переменные
+	fields 	= Mid(fields, 2); 
+	k 		= KeepChar('$(fields)', '1234567890,');
+	m 		= RangeMax($(k)); //LOAD msgbox($(m)) AutoGenerate 1;
+	n 		= Alt(n, SubField(p, ' , ', 3), m); 
+	v 		= Replace(v, '$|(', '$'&'('); 
+	e 		= Replace(e, '\\', '//'); 
+	
+	FOR m = 1 to n
+		FOR Each k in 'sl', 'sc'
+				f = Replace(Replace(Replace(Mid(v, 4, Len(v) - 4), Chr(10), ' '), Chr(13), ' '), '$1', '$(k)$(m)'); f = $(f);
+				[Variables]: Load '$(k)$(m)' as [Variables.Name], '$(f)' as [Variables.Definition] AutoGenerate 1;
+		NEXT 
+	NEXT;
+	FOR Each field in $(fields)
+		m = Num#(Right(field, 1));
+		IF m <= n THEN
+			rows = NoOfRows('$(field)');
+			FOR i = 1 to rows
+				j = Text(Num(i, 00));
+				FOR Each l in 'e', 'l', 'c', 'b', 'f', 't'
+					k = Lower(Left(field, 1)) & l;
+					IF k <> 'mt' THEN
+						f = Replace(Replace(Replace(Mid(v, 4, Len(v) - 4), Chr(10), ' '), Chr(13), ' '), '$1', '$(k)$(m)$(j)'); f = $(f);
+						f = If(k = 'me', SubField(f, '/@/', 1), If(k = 'de', If(Len(Trim(SubField(f, '/@/', 1))) > 0, SubField(f, '/@/', 1), SubField(f, '/@/', 2)), f ));		// убираем /@/ и выбираем непустое (для измерений)
+						f = If(k = 'dt' and Len(Trim(f)) = 0, '''Total''', f);
+						[Variables]: Load '$(k)$(m)$(j)' as [Variables.Name], Replace(Replace('$(f)', '\\', '//'), '$|(', '$'&'(') as [Variables.Definition] AutoGenerate 1;
+					ENDIF
+				NEXT
+			NEXT
+		ENDIF
+	NEXT
+
+	// Добавляем значения переменных до x = 50
+	T1: Concatenate (Variables) LOAD F1 as [Variables.Name], 0 as [Variables.Definition] Where not Exists ([Variables.Name], F1);
+	LOAD Left(F1, 1) &'c'& Right(F1, 1) & RecNo as F1 Where Len(F1) > 0; LOAD Lower(Trim(PurgeChar(F1, ''''))) as F1, RecNo; 
+	LOAD SubField('$(fields)', ',') as F1, Num(RecNo(), 00) as RecNo AutoGenerate 50;
+	
+	// Переменные из e с оригинальными наименованиями.
+	FOR i = 1 to SubStringCount(e, '>> /');
+		j = SubField(SubField(e, '>> /',  i +1), '/', 1);
+		f = Trim(SubField(SubField(SubField(SubField(e, '>> /',  i +1), SubField(SubField(e, '>> /',  i +1), '/', 1) & '/', 2), '>>', 1), '==', 1));
+			[Variables]: Load '$(j)' as [Variables.Name], Replace(Replace('$(f)', '\\', '//'), '$|(', '$'&'(') as [Variables.Definition] AutoGenerate 1;
+	NEXT; f=; i=; j=; k=; l=; m=; fields=; field=; rows=;
+	
+	// e & v	
+	Set v = $|(=Only ({< [Variables.Name] =  {"$1"} >} Replace(Replace(Replace(Replace(	[Variables.Definition], '@1', Replace('$2', '|', ',')), '@2', Replace('$3', '|', ',')), '@3', Replace('$4', '|', ',')), '@4', Replace('$5', '|', ',')) ));
+	Set e = $|(=If(WildMatch('$1', 'd????', 'm????') and IsNum(Right('$1', 3)), Left('$1', 3) & Alt(Num(SubField(Concat([$|(='N'& Upper(Left('$1', 1)) & $|(n))], ',', Aggr(RowNo(), [$|(='N'& Upper(Left('$1', 1)) & $|(n))])), ',', Num(Right('$1', 2))), 00), 50), '$1'));
+		e = Replace(v, '$1', e);
+
+	set v = $|(=Only ({< [Variables.Name] =  {"$1"} >} Replace(Replace(Replace(Replace(Replace(	[Variables.Definition], '@1', Replace('$2', '|', ',')), '@2', Replace('$3', '|', ',')), '@3', Replace('$4', '|', ',')), '@4', Replace('$5', '|', ',')), If(WildMatch('$1', 'dl???', 'ml???'), Chr(39), ''), '') ));
+
+	For Each i in 'e', 'v'; 
+		j = [$(i)];  [Variables]: Load '$(i)' as [Variables.Name], Replace('$(j)', '$|(', '$'&'(') as [Variables.Definition] AutoGenerate 1; 
+		[$(i)] = Replace('$(j)', '$|(', '$'&'(');
+	Next; i=; j=;
+ENDSUB
 
 SUB execute
 	
 	n=;
-	call vars
 	call e
 	
 	call process_e
 	
-	For Each i in  'Params', 'Period', 'Routines'; 
+	For Each i in  'Params', 'Routines'; 
 		Let [$(i)] 	= Lookup('Variables.Definition', 'Variables.Name', '$(i)', 'Variables');
 	Next; 
 	
-	Period		= If(Len(Period) > 0, Period, Trim(SubField(Params, ' , ', 1))); 
-	IF not IsNum(Num(Date(Period))) THEN; Period = $(Period); ENDIF 
-	Routines 	= If(Date(Period), '''calendar(''''$(Period)'''')'', ', '') & ''''& Replace(PurgeChar(Routines, ' '), ',', ''',''') &'''';
+	period		= Trim(SubField(Params, ' , ', 1)); 
+	IF not IsNum(Num(Date(period))) THEN; period = $(period); ENDIF 
+	Routines 	= If(Date(period), '''calendar(''''$(period)'''')'', ', '') & ''''& Replace(PurgeChar(Routines, ' '), ',', ''',''') &'''';
 
 	For Each Routine in $(Routines); call $(Routine); Next	
 	
-	call dropvars('i,Period,Params,Routine,Routines'); //'calendar(''$(Period)'')',
+	call drop('i,period,Params,Routine,Routines'); 
 	
 	n = 1;
-	Exit Script
+
+	exit script
 ENDSUB
-
-
-
-
 
 vLoadMode	=  Trim(SubField(SubField(Chr(10) & vParams & Chr(10), Chr(10) & 'LoadMode=', 2), Chr(10), 1)); 
 vScriptPath = '//172.16.245.8/QlikView/GIT/RGB/QVS/' & Replace(DocumentName(), '.qvw', '.qvs'); 
