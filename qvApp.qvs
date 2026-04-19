@@ -1,0 +1,10 @@
+﻿vLoadMode	=  Trim(SubField(SubField(Chr(10) & vParams & Chr(10), Chr(10) & 'LoadMode=', 2), Chr(10), 1)); 
+vScriptPath = '//172.16.245.8/QlikView/GIT/RGB/QVS/' & Replace(DocumentName(), '.qvw', '.qvs'); 
+$(must_include=//172.16.245.8/QlikView/GIT/RGB/QVS/Subroutines.qvs); 
+IF vLoadMode = 'External' and Len(FileSize('$(vScriptPath)')) > 0 THEN; 
+	$(must_include=$(vScriptPath)); 
+	vLoadMode=; vScriptPath=;
+	EXIT SCRIPT;
+ENDIF
+
+vLoadMode=; vScriptPath=; 

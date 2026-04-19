@@ -1,0 +1,2055 @@
+﻿
+SUB Variables
+
+	SET ThousandSep=' ';
+	SET DecimalSep=',';
+	SET MoneyThousandSep=' ';
+	SET MoneyDecimalSep=',';
+	SET MoneyFormat='# ##0,00р.;-# ##0,00р.';
+	SET TimeFormat='h:mm:ss';
+	SET DateFormat='DD.MM.YYYY';
+	SET TimestampFormat='DD.MM.YYYY h:mm:ss[.fff]';
+	SET MonthNames='янв;фев;мар;апр;май;июн;июл;авг;сен;окт;ноя;дек';
+	SET DayNames='Пн;Вт;Ср;Чт;Пт;Сб;Вс';
+
+	NullAsValue *; Set NullValue = '';
+	 
+	SECTION		Access;	
+		[Access]: LOAD Upper(Access) as ACCESS, Upper(User) as NTNAME FROM [\\172.16.245.8\QlikView\XLS\Config\Settings.xlsx] (ooxml, embedded labels, table is Users) Where Access = 'ADMIN';
+	SECTION		Application;
+
+
+	SUB Описание
+	//$(must_include=\\172.16.245.8\QlikView\Config\Common Script.txt);  //$(must_include=http://qlik.ucoz.net/RGBrands/qvScript.txt); 
+
+	// Переменные: 	V & любой символ(не цифра) 	- глобальные для модуля	 							удаляются после выполенения
+	// Переменные: 	V & (1-100) 				- локальные в пределах процедуры (части модуля) 	удаляются после выполенения
+	// Переменные: 	v & NAME  					- глобальные для приложения
+	// Таблицы: 	T & любой символ(не цифра) 	- глобальные для модуля								удаляются после выполенения
+	// Таблицы: 	T & (1-100) 				- локальные в пределах процедуры (части модуля) 	удаляются после выполенения
+	// Таблицы: 	NAME  						- глобальные для приложения
+	// Поля: 		F & любой символ(не цифра) 	- глобальные для модуля								удаляются после выполенения
+	// Поля: 		F & (1-100) 				- локальные в пределах процедуры (части модуля) 	удаляются после выполенения
+	// Поля: 		NAME  						- глобальные для приложения
+
+	ENDSUB
+
+	''					= 'Trim(SubField(SubField(Chr(10) & vParams & Chr(10), Chr(10) & ''$1'' & ''='', 2), Chr(10), 1))';
+	vSelect 			= Pick(Match( $((Select)), 'Default', 'Total'), 'Select1', 'Select0');
+	vFactSplitDate		= $((SplitDate));
+	vAllRoutines 		= $((AllRoutines));
+	vQvdPath 			= $((QvdPath));
+
+	SUB setParams
+	// FOR Each vParam in 'QvdPath', 'AllRoutines'
+		// [v$(vParam)]	= $(($(vParam))); 
+	// NEXT
+
+	// vQvdPath			= '\\172.16.245.8\QlikView\QVD\' & SubField(Mid(DocumentName(), 3, ) , '.', 1);
+	// CALL SetParam('QvdPath', '$(vQvdPath)')
+
+
+	/* vParams ='QvdPath=$(vQvdPath)\
+	Server=$(vServer)
+	Database=$(vBaseName)
+	Login=$(vLogin)
+	Password=$(vPassword)
+	MarkedQueries=$(vRandomObject)
+	MarkedRoutines=$(vRandomScript)
+	Routines=$(vSubList)
+	ActualDate=$(vFactSplitDate)
+	SelectCheck=$(vSelectSplit)
+	CommonCheck=1
+	Action=Default
+	Select=Default
+	Period=Default
+	KeepTable=$(=Pick(Match(vRandomSave, 1,0), 0, 1))
+	EditSelect=0
+	Rebuild=0
+	LoadControl=0';//\\172.16.245.8\QlikView\QVD\CNT\ */
+	 ENDSUB
+
+	vDateStart			= Date(YearStart(Today(), -9)); //'01.01.2013');
+	vDateEnd			= Date(MonthStart(AddMonths(Today(), 6))); 
+	vPlanSplitDate		= MonthStart(AddMonths(WeekStart(Date(Today() + If(Num(WeekDay(Today())) = 6, 1, 0))), - 3));
+	vPlanSplitDate		= MonthStart(AddMonths(WeekStart(Date(Today() + If(Num(WeekDay(Today())) = 6, 1, 0) + If( Date(Today()) = '04.01.2025', 2, 0) )), - 3));
+	vTotalSplit 		= If(vFactSplitDate <> vPlanSplitDate, 0, 1); 
+	vDaySplitDate		= Date(Today()-20); 
+	vSplitPeriod 		= If(№= 1, ' < ', ' >= ') & Chr(39) & '$(vPlanSplitDate)' & Chr(39);
+	vLoadType			= If($((Period)) = 'Default' or IsNull($((Period))), Pick(Match(-1, Num(WeekDay(Today())) = 6 and not vTotalSplit, Hour(Now()) < 8, -1), 'Full', 'Night', 'Day'), $((Period))); 
+	vLoadType			= If($((Period)) = 'Default' or IsNull($((Period))), Pick(Match(-1, (Num(WeekDay(Today())) = 6 or Date(Today())  = '04.01.2025' ) and not vTotalSplit, Hour(Now()) < 8, -1), 'Full', 'Night', 'Day'), $((Period))); 
+	//LOAD msgbox('$(vLoadType)') autogenerate 1;
+	vNotEmpty 			= 'Len($1) > 0 and $1 <> 0 and $1 <> ''01.01.1753 0:00:00''';
+	vGpsConvert 		= 'Round( Floor($1 / 100) + ((($1 - (Floor($1 / 100) * 100)) - Floor($1 - (Floor($1 / 100) * 100))) + Floor($1 - (Floor($1 / 100) * 100)))/60 , 0.00001)';
+	vGpsDistance 		= 'Round((3958.75 * acos( sin(Широта / 57.2958) * sin(кпкШирота / 57.2958) + cos(Широта / 57.2958) * cos(кпкШирота / 57.2958) * cos(кпкДолгота / 57.2958 - Долгота / 57.2958))) * 1609.344)';
+	vConnect			= 'OLEDB CONNECT TO [Data Source='& $((Server)) &'; Initial Catalog='& $((Database)) &'; User ID='& $((Login)) &'; Password='& $((Password)) &'; Provider=SQLOLEDB.1; Persist Security Info=True; Use Procedure for Prepare=1; Auto Translate=True; Packet Size=4096; Workstation ID=QLIKVIEW; Use Encryption for Data=False; Tag with column collation when possible=False]; SQL SET TRANSACTION ISOLATION LEVEL  READ UNCOMMITTED;';
+	vConnect			= If($((SQL)) = 'PG', 'CUSTOM CONNECT TO "Provider=QvOdbcConnectorPackage.exe;driver=postgres;host='& $((Server)) &';port=5432;db='& $((Database)) &';FetchTSWTZasTimestamp=1;MaxVarcharSize=262144;UserId='& $((Login)) &';Password='& $((Password)) &';";', vConnect);
+	//vConnect			= If($((Database)) = 'urk_sanich', 'ODBC CONNECT TO urk_sanich;', vConnect);
+//LOAD msgbox('$(vConnect)') autogenerate 1;
+	vCheckTable			= 'IF Len(Trim(vTABLE)) 	= 0 THEN; vTABLE = TableName(NoOfTables() - 1); ENDIF;'; // ELSEIF IsNull(TableNumber(vTABLE)) THEN;
+	vGetDateField 		= 'IF Len(Trim(vDATEFIELD)) = 0 THEN; FOR vCounter = 1 to NoOfFields(''$'&'(vTABLE)''); vCurField = FieldName($'&'(vCounter), '''&'$(vTABLE)''); IF WildMatch(vCurField, ''*.Период'', ''*.Дата'', ''Дата'') THEN; vDATEFIELD = vCurField; EXIT FOR; ENDIF; NEXT; ENDIF;';
+	vTrace				= 'IF ''$2'' = ''$'' & ''2'' THEN; TRACE '& Repeat('-', 40) &' $1; ELSE; TRACE '& Repeat('$2', 40) &' $1 '& Repeat('$3', 40) &'; ENDIF;';
+	vQvdExists 			= 'not IsNull(QvdCreateTime($1))';
+	vFileExists 		= 'not IsNull(FileSize($1))'; 
+
+	vLoop		 		= 'FOR № 	= 1 to 2; 
+							IF vLoadType = ''Full'' 									THEN; //and not vTotalSplit
+								IF 		$((Period)) = ''Default''						THEN;
+									CALL GetFileSplit(''$(vQvdPath)\$1 1.qvd'');
+									№ = If(vFileSplitDate = vPlanSplitDate, 2, 1);
+								ENDIF
+							ELSE 	
+								№ = 2;
+							ENDIF';
+				
+	vSelectScript 		= '';
+	vLog				= '';
+
+	VA = ''; FOR V1 = 1 to 25; VA = VA & 'V' & V1 & ','; NEXT;  VA =Left(VA, Len(VA) - 1);			// Набор параметров, передоваемых в процедуры
+	VB = '';																						// Локальный лог модуля
+	VC = 0;																							// Счетчик вызовов процедуры TableTest
+	VD = '';																						// Имя выполняемой процедуры через Execute
+	VT = '[$1] = If(Len(NoOfRows(''$2'')) = 0, TableName(NoOfTables() -1), ''$2'');';				// Проверка имени таблицы $2. При отсутствии, переменной $1 присваивается имя последней
+ENDSUB 
+CALL Variables
+SUB Select(vOBJECT, vSELECT, vSTORE, 	vNo,vComment,vDocDate,vTable,i,vИмяХранения,vSelectNo,vSelectType,vParam,vStore,vTableSql,vTable1C,vTable1C_2,vGeneric,vНазначение,vMarkedField,vMarked,vHierarchy,vDateField,vJoinTypesvPartLoad,vString,vJoinCount,vJoinString,vJoinNo,vJoinEnumes,vТипРеквизита,vJoinTables,vJoinField,j,vJoinTable,vJoinTableName,vJoinType,vFieldName,vField,vLoop,vObjectPart,vWhereDate,vDateLimit,vLimitField,vSql.DateAdd,vJoinPrefix,vComments,vBoolList,vСиноним,vPartLoad,vСиноним,vJoinTypes,vTypeFields,vCounter,vAtribute,vValue,vMultiJoin,k,cast,convert,dateAdd,s1,s2,s2,s4) 
+	//*********************************************************************************************************************************************************
+	//	01.	Выгрузка данных "vObject" из SQL базы 1С используя готовые метаданные. 
+	//*********************************************************************************************************************************************************
+
+//Load msgbox('$(vOBJECT)' & ' - ' & '$(vSELECT)') autogenerate 1;
+	NoConcatenate [Table.MetaData]: LOAD ИмяТаблицыQV, ИмяПоля, ИмяПоляQV, Синоним, Представление, ИмяХранения, ТипРеквизита, ИмяХраненияТипа, КолТипов, Select1 as #Select1, Select0 as #Select0, Объект, Назначение, КоличествоСтрок Resident Metas Where [ИмяТаблицыQV] = '$(vOBJECT)' Order by [ИмяПоляQV]; 
+	//-----------------------------------------------------------------------------------------------------------------------------------------------------
+	//  vTableSql - название таблицы в SQL. vTable1C - название в 1С. vString - строка между Select и From. vJoinString - строка соединения после From.
+	//-----------------------------------------------------------------------------------------------------------------------------------------------------
+//	vSelectNo		= '#Select' & If( Len(Trim(vSELECT)) = 0, 1, Keepchar(vSELECT, '01') );
+	vSelectNo		= '#Select' & If( Len(Trim(vSELECT)) = 0, 1, Keepchar(vSELECT, '01') ); 
+	vSelectType		= 			Lookup(vSelectNo, 		'Представление', vOBJECT, [Table.MetaData]);
+	vMarked			= If(vOBJECT like 'Регистр*', 1, 0); //If(Len(vMarked) = 0, 		If(vOBJECT like 'Регистр*', 1, 0),	vMarked);
+	vStore			= If(Len(vSTORE) = 0, 		1, 									vSTORE);
+
+	vTableSql 		= 			Lookup('ИмяХранения', 	'Представление', vOBJECT, [Table.MetaData]); 
+	vTable1C 		= Replace(	Lookup('ИмяПоляQV', 	'Представление', vOBJECT, [Table.MetaData]), '.', '');
+	vTable1C 		= If(Len(Trim(vTable1C	)) > 0, vTable1C, 	If(SubstringCount(vOBJECT, '.') > 0, Replace(Mid(vOBJECT, Index(vOBJECT, '.', 1)), '.', '')	, vOBJECT));
+	vTable1C_2 		= 			Lookup('ИмяПоляQV', 	'Представление', vOBJECT, [Table.MetaData]); 
+	vTable1C_2 		= If(Len(Trim(vTable1C_2)) > 0, vTable1C_2, If(SubstringCount(vOBJECT, '.') > 0, 		 Mid(vOBJECT, Index(vOBJECT, '.', 1) +1)		, vOBJECT)); 
+	vGeneric		= 			Lookup('Разворот', 		'Представление', vOBJECT, [Table.MetaData]);
+	vНазначение		= 			Lookup('Назначение', 	'Представление', vOBJECT, [Table.MetaData]);
+	vMarkedField	= If(Len(Lookup('ИмяПоляQV', 'ИмяХранения', '_Marked', [Table.MetaData])) > 0, '_Marked', If(Len(Lookup('ИмяПоляQV', 'ИмяХранения', '_Active', [Table.MetaData])) > 0, '_Active', ''));
+	vMarked			= If(vMarked and Len(vMarkedField) > 0, '$(vTable1C).$(vMarkedField) = 1', '1 = 1'); 
+//	vMarked			= If(vMarked and Lookup(vSelectNo, 'ИмяХранения', vMarkedField, [Table.MetaData]) < 0, '$(vTable1C).$(vMarkedField) = 1', '1 = 1'); 
+	vHierarchy 		= If(WildMatch(vOBJECT, 'Справочник.*', 'ПланСчетов*') and vНазначение = 'Основная' and Len(Lookup('ИмяТаблицыQV', 'ИмяПоля', 'Родитель', [Table.MetaData])) > 0 and Len(Lookup('ИмяТаблицыQV', 'ИмяПоля', 'Наименование', [Table.MetaData])) > 0 and vSelectType, 'Hierarchy($(vTable1C).Ссылка, $(vTable1C).Родитель.Ссылка, $(vTable1C).Наименование,,$(vTable1C).Наименование, ''$(vTable1C).Путь'', ''|'')', '');
+	vDateField  	= If(Lookup('Представление', 'ИмяХранения', '_Period', [Table.MetaData]) > 0 and WildMatch(vНазначение, 'Основная', 'Итоги*', 'ЗначенияСубконто', 'ИтогиПоСчетамССубконто*'), '$(vTable1C)._Period', If(Lookup('Представление', 'ИмяХранения', '_Date_Time', [Table.MetaData]) > 0 and vНазначение = 'Основная', '$(vTable1C)._Date_Time', '')); // If(vOBJECT like 'Документ.*', SubField(vOBJECT, '.', 2) & '._Date_Time', ''));
+	vDateField  	= If(vOBJECT like 'Документ.*' and vНазначение = 'ТабличнаяЧасть', SubField(vOBJECT, '.', 2) & '._Date_Time', vDateField); 		//Load msgbox('$(vDateField)') autogenerate 1;
+	vPartLoad		= If(not WildMatch(vOBJECT, 'Справочник.*', 'ПланСчетов*') and Len(vDateField) > 0, vSelectType, 0); 							//Load msgbox('$(vPartLoad)') autogenerate 1;
+
+//	vString 		= '';	// Строка запроса с названиями полей
+//	vJoinString		= '';	// Строка запроса для присоединения таблиц
+//	vJoinEnumes		= '';	// Список полей с присоединяемыми перечислениями
+//	vJoinTypes		= '';	// Список полей с присоединяемыми перечислениями
+//	vTypeFields		= '';	// Список полей с индексами таблииц для дальнейшей рсшифровки 
+//	vComments		= ''; 	// Строка комментариев 
+	vJoinTables		= '1';	// Список присоедияемых таблиц на случай повторений
+	vJoinNo 		= 0;	// Нумератор для присоединяемых таблиц на случай повторений
+ 
+	//-----------------------------------------------------------------------------------------------------------------------------------------------------
+	//  vJoinTable - присоединяемая таблица в SQL. vJoinTableName - она же в 1С. vJoinType - тип соединения. vField - поле в SQL. vFieldName - поле в 1С.
+	//-----------------------------------------------------------------------------------------------------------------------------------------------------
+	
+	set vSql.DateAdd	= Case when DateAdd(Year, [Offset], '17530101') > $1 then $1 else DateAdd(Year, -[Offset], $1) end;
+	set vSql.Convert	= Case when $1 = '01.01.1753 0:00:00' then '' else replace(convert(varchar, $(vSql.DateAdd), 103), '/', '.') end;
+	set vSql.Cast		= Cast($1 as int);
+	
+	FOR i = 0 to NoOfRows('Table.MetaData'); 	// LOAD MsgBox('$(qwe)') AutoGenerate 1;
+		IF Peek(vSelectNo, $(i)) >= 0 and Peek('Представление', $(i), [Table.MetaData]) <> Peek('ИмяТаблицыQV', $(i), [Table.MetaData]) THEN 
+		
+			vParam			= Peek(vSelectNo, 			$(i), [Table.MetaData]);
+			vИмяХранения	= Peek('ИмяХранения', 		$(i), [Table.MetaData]); 
+			vТипРеквизита	= Peek('ТипРеквизита', 		$(i), [Table.MetaData]); 
+			vComment		= If(SubStringCount(vТипРеквизита, ',') > 2, 'Более 3 типов', vТипРеквизита);
+			vТипРеквизита 	= If(Len(vТипРеквизита) = 0 and Match(vИмяХранения, '_Period', '_Date_Time'), 'Дата', vТипРеквизита);
+			vСиноним		= Peek('Синоним', 			$(i), [Table.MetaData]); 
+			
+//			vJoinCount		= Peek('КолТипов', 			$(i), [Table.MetaData]);
+			vJoinCount		= If(Len(vТипРеквизита) = 0 or SubStringCount(vТипРеквизита, ',') > 0, 0, Peek('КолТипов', 			$(i), [Table.MetaData]));
+			vJoinTable 		= Peek('ИмяХраненияТипа', 	$(i), [Table.MetaData]);
+			vJoinTableName	= SubField(vТипРеквизита, '.', 2);
+			vJoinNo			= SubStringCount('$(vJoinTables)', Chr(39) & vJoinTableName & Chr(39)) + 1;
+			vJoinPrefix		= If(vJoinTableName = vTable1C or vJoinNo > 1, '#$(vJoinNo)', '');
+			vJoinType		= If(WildMatch(Peek('ИмяПоляQV', $(i), [Table.MetaData]), '*.Ссылка', '*_RRRef'), vParam, 0); 
+//			IF vJoinType > 1 and vТипРеквизита like 'Справочник.*' THEN; [JoinTest]: LOAD ИмяХранения Resident Metas Where ИмяТаблицыQV = '$(vТипРеквизита)' and ИмяХранения = '_Description'; vJoinType = If(NoOfRows('JoinTest') > 0, vJoinType, 0); DROP Table [JoinTest]; ENDIF;
+			IF vJoinType > 1 and vJoinCount = 1 and	vТипРеквизита like 'Справочник.*' THEN; 
+				[JoinTest]: LOAD ИмяХранения Resident Metas Where ИмяТаблицыQV = '$(vТипРеквизита)' and ИмяХранения = '_Description'; vJoinType = If(NoOfRows('JoinTest') > 0, vJoinType, 0); DROP Table [JoinTest]; ENDIF;
+			vJoinField		= vJoinPrefix & vJoinTableName & If(Match(vТипРеквизита, 'Справочник.НомераГТД', 'Справочник.СерийныеНомераНоменклатуры'), '._Code', If(WildMatch(vТипРеквизита, 'Справочник*', 'ПланВидовХарактеристик*', 'ПланВидовРасчета*', 'ПланСчетов*'), '._Description', If(vТипРеквизита like 'Перечисление*', '._EnumOrder', If(vТипРеквизита like 'Документ*', '._Number', '')))); 
+// Добавляем дату для реквизита Документ
+			vDocDate		= Replace(vJoinField, '_Number', '_Date_Time');
+			vJoinField		= If(vТипРеквизита like 'Документ*', '''$(vСиноним) '' + $(vJoinField) + '' от '' + $(vSql.Convert($(vDocDate)))', vJoinField);
+
+
+			vBoolList 		= If(WildMatch(vJoinTable, '*;*'), vJoinTable, 'Yes;No') //'Да;Нет')
+
+			vFieldName		= Peek('ИмяПоляQV', $(i), [Table.MetaData]); 
+			vField			= vTable1C & '.' & vИмяХранения; 
+			vField 			= If( WildMatch(vField, '*TRef', '*_TYPE') and not vField like '*._Type', '$(vSql.Cast($(vField)))', vField); // 'Cast($(vField) as int)', vField);
+			vField 			= If( vТипРеквизита = 'Дата', If(vParam > 0, '$(vSql.Convert($(vField)))', '$(vSql.DateAdd($(vField)))'), '$(vField)'); 
+			vField 			= If( vТипРеквизита = 'Булево' and vParam > 0, 'case when $(vField) = 1 then '&Chr(39)& SubField(vBoolList, ';', 1) &Chr(39)&'  when $(vField) = 0 then '&Chr(39)& SubField(vBoolList, ';', 2) &Chr(39)&' end', vField);
+			vField 			= If( Peek('ИмяПоля', $(i), [Table.MetaData]) = 'ВидДвижения', 'case when $(vField) = 1 then -1  when $(vField) = 0 then +1 end', vField);
+
+	    	vString 		= vString 		&chr(13)&chr(9)& 	If($(vJoinType) > 1 and vJoinCount = 1, vJoinField, '$(vField)') & ' as [' & If($(vJoinType) = 1, '$(vJoinTableName).Ссылка', If($(vJoinType) > 1 and vJoinCount = 1, SubField(vFieldName, '.Ссылка', 1), vFieldName)) & '], // '& vComment;
+	    	vString 		= vString 		& 						If($(vJoinType) = 3 and vJoinCount = 1, chr(13)&chr(9)& '$(vField) as [$(vFieldName)], // '& vComment, '');
+	    	vString 		= vString 		& If($(vParam) 	  = 2 and WildMatch(vFieldName, '*.Дата', '*.Период'), chr(13)&chr(9)& vTable1C & '.' & Peek('ИмяХранения', $(i), [Table.MetaData]) & ' as [$(vFieldName)Время], // '& vComment, '');
+	    	vJoinString		= vJoinString 	& If($(vJoinType) > 1 and vJoinCount = 1, chr(13)&chr(9)& 'Left Join $(vJoinTable) as [$(vJoinPrefix)$(vJoinTableName)] with (nolock) on $(vField) = $(vJoinPrefix)$(vJoinTableName)._IDRRef ', ''); 
+	    	vJoinTables		= vJoinTables 	& If($(vJoinType) > 1 and vJoinCount = 1, ', ' & Chr(39) & vJoinTableName & Chr(39) );
+	    	vJoinEnumes		= vJoinEnumes 	& If($(vJoinType) > 1 and vJoinCount = 1 and vТипРеквизита like 'Перечисление*', ', ' & vТипРеквизита & '-' & Replace(vFieldName, '.Ссылка', '') ); 
+	    	vJoinTypes		= vJoinTypes 	& If($(vParam) 	  = 1 and WildMatch(vFieldName, '*.Тип', '*.ТипОбъекта'), ', ' & vFieldName); 
+			vTypeFields		= vTypeFields 	& If(vField like '*TRef', ', ' & vFieldName);
+			vComments 		= vComments 	& Chr(13) & 'COMMENT Field '& If($(vJoinType) = 1, '$(vJoinTableName).Ссылка', vFieldName) &' With '''& 'Тип: ' & vТипРеквизита &Chr(13)& 'Синоним: ' & vСиноним &''';';
+			vComments 		= vComments 	& If($(vJoinType) >= 2, Chr(13) & 'COMMENT Field '& SubField(vFieldName, '.Ссылка', 1) &' With '''& 'Тип: Строка' &Chr(13)& 'Синоним: ' & vСиноним &''';', '');
+
+//	    	vMultiJoin		= vMultiJoin 	& If((vJoinCount > 1 or Len(vJoinCount) = 0), ', ' & Chr(39) & vFieldName & Chr(39) ); // and SubStringCount(vMultiJoin, vFieldName) = 0
+	    	vMultiJoin		= vMultiJoin 	& If($(vJoinType) = 3 and (vJoinCount > 1 or Len(vJoinCount) = 0 or vJoinCount  = 0), ', ' & Chr(39) & vFieldName & Chr(39) ); // and SubStringCount(vMultiJoin, vFieldName) = 0
+	    ENDIF 
+	NEXT; 
+	vJoinNo			= SubStringCount('$(vJoinTables)', Chr(39) & SubField(vOBJECT, '.', 2) & Chr(39)) + 1; vJoinPrefix = If(vJoinNo > 1, '#$(vJoinNo)', '');
+	vJoinString		= vJoinString & If(vOBJECT like 'Справочник.*' and vНазначение = 'ТабличнаяЧасть', chr(13)&chr(9)& 'Full Join _'& SubField(vTableSql, '_', 2) &' as ['& vJoinPrefix & SubField(vOBJECT, '.', 2) &'] with (nolock) on $(vTable1C)._'& SubField(vTableSql, '_', 2) &'_IDRRef = '& vJoinPrefix & SubField(vOBJECT, '.', 2) &'._IDRRef ', '');
+	vJoinString		= vJoinString & If(vPartLoad and vOBJECT like 'Документ.*' and vНазначение = 'ТабличнаяЧасть', chr(13)&chr(9)& 'Inner Join _'& SubField(vTableSql, '_', 2) &' as ['& SubField(vOBJECT, '.', 2) &'] with (nolock) on $(vTable1C)._'& SubField(vTableSql, '_', 2) &'_IDRRef = '& SubField(vOBJECT, '.', 2) &'._IDRRef ', '') &Chr(13)&chr(9)& ',[_YearOffset]' &Chr(13);
+	//vString 		= vString & If(vOBJECT like 'Документ.*' and vНазначение = 'ТабличнаяЧасть' and vPartLoad, Chr(13)&chr(9)& 'replace(convert(varchar, $(vSql.DateAdd($(vDateField))), 103), '&chr(39)&'/'&chr(39)&', '&chr(39)&'.'&chr(39)&') as [$(vTable1C_2).Дата], // Дата', '') ; 
+	vString 		= vString & If(vOBJECT like 'Документ.*' and vНазначение = 'ТабличнаяЧасть' and vPartLoad, Chr(13)&chr(9)& '$(vSql.Convert($(vDateField))) as [$(vTable1C_2).Дата], // Дата', '') ; 
+	vString 		= Mid(vString, 1, Index(vString, '],', -1) -1) &'] '& Mid(vString, Index(vString, '//', -1) ) &Chr(13);
+	vString 		= If(vOBJECT like 'Справочник.*' and vНазначение = 'ТабличнаяЧасть', Replace(vString, chr(13)&chr(9)& '$(vTable1C)._'& SubField(vTableSql, '_', 2) &'_IDRRef as ', chr(13)&chr(9)& 'Isnull($(vTable1C)._'& SubField(vTableSql, '_', 2) &'_IDRRef, '& vJoinPrefix & SubField(vOBJECT, '.', 2) &'._IDRRef) as '), vString);
+	DROP Tables [Table.MetaData]; 
+	//-----------------------------------------------------------------------------------------------------------------------------------------------------
+	//  Выгрузка. Удаление таблицы метаданных, пустых колонок и переменных. vStore - разбиение загрузки и сохранение(0,1 - для справочников. 2,3 - для документов). vLoop - количество частей. 
+	//-----------------------------------------------------------------------------------------------------------------------------------------------------
+
+	FOR vNo 	= 1 to 2; 
+		vTable = vOBJECT; vWhereDate = ''; vLimitField = ''; vFileSplitDate = vFactSplitDate;
+
+		// LOAD MsgBox('vPartLoad - $(vPartLoad)  : vLoadType - $(vLoadType) : vFileSplitDate - $(vFileSplitDate) : vPlanSplitDate - $(vPlanSplitDate)') AutoGenerate 1;
+		IF 			not vPartLoad 															THEN; 	vNo = 2; 	//or vTable like 'Док*.Реал*Услуг.Доп*Реквизиты' 
+		ELSE
+			  IF 	 vTable = 'Документ.РеализацияТоваровУслуг.ДополнительныеРеквизиты'		THEN; 	vNo = 2;
+			  
+			ELSEIF 	vLoadType = 'Full'														THEN; 	
+					IF $((Period)) = 'Default' 												THEN; 
+						CALL GetFileSplit('$(vQvdPath)\$(vTable) 1.qvd'); 							vNo = If(vFileSplitDate = vPlanSplitDate, 2, vNo); 					
+					ENDIF
+					vFileSplitDate = vPlanSplitDate;
+			ELSE;																					vNo = 2; 							
+					IF  not vTotalSplit														THEN
+						CALL GetFileSplit('$(vQvdPath)\$(vTable) 1.qvd');
+					ENDIF
+			ENDIF
+			//LOAD MsgBox('vPartLoad - $(vPartLoad)  : vLoadType - $(vLoadType) : vFileSplitDate - $(vFileSplitDate) : vPlanSplitDate - $(vPlanSplitDate) : vNo - $(vNo)') AutoGenerate 1;
+			vTable 			= vTable & ' ' & vNo; 	
+			vWhereDate 		= ' and $(vSql.DateAdd($(vDateField)))' & If(vNo = 1, ' < ', ' >= ') & Chr(39) & Date(If(vLoadType = 'Day' and $(vQvdExists('$(vQvdPath)\$(vTable).qvd')), vDaySplitDate, vFileSplitDate), 'YYYYMMDD') & Chr(39);
+			vLimitField		= If(vOBJECT like 'Документ.*' and vНазначение = 'ТабличнаяЧасть', '$(vTable1C_2).Дата', vTable1C_2 & Pick(WildMatch(vDateField, '*_Date_Time', '*_Period'), '.Дата', '.Период'));
+			vWhereDate		= vWhereDate & If(vNo = 1, ' and $(vSql.DateAdd($(vDateField))) >= ' & Chr(39) & Date(vDateStart, 'YYYYMMDD') & Chr(39), '');
+		ENDIF
+		//LOAD MsgBox('$(vWhereDate)') Autogenerate 1; exit script
+		
+		vQuery	= '[$(vTable)]: $(vHierarchy)' & Chr(13) & 'SELECT $(vString)From [$(vTableSql)] as [$(vTable1C)] with (nolock)$(vJoinString)Where $(vMarked) $(vWhereDate);';
+
+		vSelectScript 	= vSelectScript & Chr(13) & vQuery & Chr(13);
+		
+		IF $((SQL)) = 'PG' THEN; CALL msTOpg; ENDIF
+		
+		IF $((Action)) <> 'Get queries' THEN
+
+			//Set ErrorMode = 0; 
+			$(vQuery); $(vComments); Set ErrorMode = 1;
+			
+			IF ScriptError > 0 	THEN;  EXIT SUB; ENDIF; //Set ErrorMode = 1;
+
+			IF vPartLoad 	 	THEN; COMMENT Table [$(vTable)] With 'SplitDate: $(vFileSplitDate)';																		ENDIF; 
+
+
+			IF NoOfRows('$(vTable)') > 0 THEN
+				IF Len(vJoinEnumes)  > 0 		THEN; CALL AddEnumes		('$(vTable)', '$(vJoinEnumes)', '$(vJoinTables)'); 												ENDIF 
+				IF Len(vMultiJoin) 	 > 0 	 	THEN; CALL MultiJoin		('$(vTable)', '$(vMultiJoin)'); 																ENDIF 
+
+			IF (Len(vGeneric) > 0 or Match(SubField(vOBJECT, '.', 3), 'ДополнительныеРеквизиты', 'КонтактнаяИнформация')) and not Match(SubField('$(vOBJECT)', '.', 2), 'НаборыДополнительныхРеквизитовИСведений', 'СоглашенияСКлиентами')  THEN
+				vAtribute	= Trim(If(Len(vGeneric) > 1, SubField(vGeneric, ',', 1), If(SubField(vOBJECT, '.', 3) = 'ДополнительныеРеквизиты', 'Свойство', 'Вид') ));
+				vValue	 	= Trim(If(Len(vGeneric) > 1, SubField(vGeneric, ',', 2), If(SubField(vOBJECT, '.', 3) = 'ДополнительныеРеквизиты', 'Значение', 'Представление') ));
+				CALL GenericTable('$(vTable)', SubField(vTable1C_2, '.', 1) & '.Ссылка', '$(vTable1C_2)' & '.' & '$(vAtribute)',  '$(vTable1C_2)' & '.' & '$(vValue)', '1')
+			ENDIF // 				
+				
+				IF Len(vJoinTypes)   > 0 		THEN; CALL AddTypes			('$(vTable)', '$(vJoinTypes)'); 																ENDIF 
+				IF Len(vTypeFields)  > 0 		THEN; CALL AddObjectType	('$(vTable)', If(vOBJECT like 'Регистр*', 1, 0), Right(vTypeFields, Len(vTypeFields) - 2)); 	ENDIF
+				IF vOBJECT like 'Справочник.*' 	THEN; CALL FillEmptyValues	('$(vTable)'); 																					ENDIF
+				IF not vPartLoad 				THEN; CALL DropNullFields	('$(vTable)'); 																					ENDIF
+				IF 0 							THEN; CALL DropEmptyFields	('$(vTable)'); 																					ENDIF
+			ENDIF
+			IF 		vStore 						THEN; CALL Store			('$(vTable)', '1', If(vPartLoad and vLoadType = 'Day', '$(vLimitField)', 0)); 					ENDIF
+		ENDIF
+	NEXT 
+	CALL DropVars('vOBJECT, vSELECT, vSTORE');
+ENDSUB 
+SUB DropEmptyFields(vTABLE, vFieldNo, vShift, vField);
+	//*********************************************************************************************************************************************************
+	// 02. Удаление пустых колонок.
+	//*********************************************************************************************************************************************************
+
+	vShift = 0; // Смещение индекса поля, учитывающее удаленные колонки
+
+	FOR vFieldNo = 1 to NoOfFields('$(vTABLE)'); // Перебираем все поля таблицы
+		vField = FieldName(vFieldNo - vShift, '$(vTABLE)'); // Получаем имя текущего поля
+
+		[CheckTable]: // Создаем временную таблицу [CheckTable]
+		LOAD 1 as CheckField Resident [$(vTABLE)] Where Len(Trim([$(vField)])) > 0; // Загружаем единицу, если поле не пустое
+
+		IF NoOfRows('CheckTable') = 0 THEN // Если временная таблица пуста (поле пустое)
+			DROP FIELD [$(vField)] FROM [$(vTABLE)]; // Удаляем поле из таблицы
+			vShift = vShift + 1; // Увеличиваем смещение индекса поля
+		ENDIF;
+
+		DROP TABLE [CheckTable]; // Удаляем временную таблицу
+	NEXT;
+	/* Описание шагов подмодуля:
+
+	Устанавливает начальное значение переменной vShift равным 0, которая будет использоваться для учета удаленных колонок.
+	В цикле FOR перебирает все поля таблицы vTABLE.
+	Получает имя текущего поля в переменную vField.
+	Создает временную таблицу [CheckTable].
+	Загружает единицу в поле CheckField временной таблицы [CheckTable], если поле [vField] не пустое (длина строки без пробелов больше 0).
+	Проверяет количество строк в временной таблице [CheckTable]. Если она равна 0 (поле пустое), выполняет следующие действия:
+	Удаляет поле [vField] из таблицы [vTABLE].
+	Увеличивает значение переменной vShift на 1, чтобы учесть удаленное поле при расчете индекса следующего поля.
+	Удаляет временную таблицу [CheckTable].
+	Завершает выполнение подмодуля.*/	
+	
+ENDSUB;
+SUB DropNullFields(vTABLE, vFieldNo, vShift, vField)
+	//*********************************************************************************************************************************************************
+	// 	03.	Удаление колонок со значением NULL. 
+	//*********************************************************************************************************************************************************
+
+    vShift = 0;  // Инициализация счетчика удаленных полей
+    
+    FOR vFieldNo = 1 to NoOfFields('$(vTABLE)')  // Цикл для каждого поля в таблице данных
+        vField = FieldName(vFieldNo - vShift, '$(vTABLE)');  // Получение имени текущего поля
+        
+        IF Alt(FieldValueCount('$(vField)'), 0) <= 0 THEN  // Проверка на наличие нулевых значений или отсутствие значений
+            DROP Field [$(vField)] FROM [$(vTABLE)];  // Удаление поля из таблицы данных
+            vShift = vShift + 1;  // Увеличение счетчика удаленных полей
+        ENDIF;
+    NEXT;
+ENDSUB
+SUB GenericTable(vTABLE, vKey,vAttribute,vValue,vModifier,vListOfTables,vBaseName,vComments,vField,vFieldName,vTableNo,vTableName,vRename,i); $(vCheckTable); //,vString 
+	//*********************************************************************************************************************************************************
+	// 	04.	Разворот вертикальных значений свойств в горизонтальные колонки таблицы vTable. vKey - ключевое поле. vAttribute - свойство. vValue - значение. vModifier - исправление названий полученых полей.
+	//*********************************************************************************************************************************************************
+
+	// Загрузка и преобразование данных
+	vString 	= vValue; 	
+	vBaseName	= SubField(Mid(vTABLE, Index(vTABLE, '.', 1) +1), ' ', 1); 
+	vField		= vBaseName & '.Значение';
+	
+	// Проверка на "ДополнительныеРеквизиты" 
+	IF SubField(SubField(vTABLE, '.', 3), ' ', 1) like 'ДополнительныеРеквизиты' THEN
+		// Формирование строки запроса vString для выбора значения реквизита в зависимости от его типа
+		IF FieldNumber('$(vField).TYPE', '$(vTABLE)') > 0 THEN
+			vString 	= 'Pick(Match([$(vField).TYPE], 2, 3, 4, 5, 8), [$(vField).L], [$(vField).N], [$(vField).T], [$(vField).S], [$(vField)' & If(FieldNumber(vField, vTABLE) > 0, '', '.Ссылка') & '])';  
+		ELSE
+			vString 	= 'Pick(Match([$(vField).ТипЗначения], 2, 3, 4, 5, 8), [$(vField).Булево], [$(vField).Число], [$(vField).Дата], [$(vField).Строка], [$(vField)' & If(FieldNumber(vField, vTABLE) > 0, '', If(FieldNumber(vField & '.Представление', vTABLE) > 0, '.Представление', '.Ссылка')) & '])';  
+		ENDIF	
+	ENDIF;
+
+	// Загрузка значений свойств в таблицы Generic_1...
+	[Generic_1]: Generic LOAD  $(vKey), $(vAttribute), $(vString) as [$(vValue)] Resident [$(vTABLE)] Where Len([$(vAttribute)]) > 0; 
+
+	// Формирование списка таблиц [vListOfTables] с префиксом "Generic_1"
+	vListOfTables=;		
+   	FOR vTableNo = 0 to NoOfTables(); 
+		vTableName = TableName($(vTableNo)); 
+		IF Subfield(vTableName,'.', 1) = 'Generic_1' THEN; 
+			vListOfTables = vListOfTables & If(Len(vListOfTables)>0,',') & Chr(39) & vTableName & Chr(39); 
+		ENDIF; 
+	NEXT
+
+	// Формирование строки [vString] с перечислением полей таблицы
+	vString  	= vKey; 
+	FOR vFieldNo = 1 to NoOfFields('$(vTABLE)'); 
+		IF not WildMatch(FieldName(vFieldNo, '$(vTABLE)'), vValue, vAttribute, vKey, '*ДополнительныеРеквизиты.Значение*') THEN; 
+			vString = vString & ', ' & FieldName(vFieldNo, '$(vTABLE)');
+		ENDIF;
+	NEXT;
+	
+// Определение строки [vString] в зависимости от условий
+//	vString  	= If((vDatabase = 'RGB_ERP' and Match(vTABLE, 'Справочник.Контрагенты.КонтактнаяИнформация', 'Справочник.Партнеры.КонтактнаяИнформация')) or vTABLE like 'Документ.*' or vTABLE = 'Справочник.ФизическиеЛица.КонтактнаяИнформация', vString, vKey); 
+	vString  	= If(($((Database)) = 'RGB_ERP' and Match(vTABLE, 'Справочник.Контрагенты.КонтактнаяИнформация', 'Справочник.Партнеры.КонтактнаяИнформация')) or vTABLE like 'Документ.*' or vTABLE = 'Справочник.ФизическиеЛица.КонтактнаяИнформация', vString, vKey); 
+
+	// Загрузка уникальных значений полей [vString] во временную таблицу [Generic_2]
+	[Generic_2]: LOAD distinct $(vString) Resident [$(vTABLE)]; DROP Table [$(vTABLE)];  	
+	FOR Each vTableName in $(vListOfTables); 
+		IF Len(vBaseName) > 0 THEN; 
+			FOR i = 1 to NoOfFields('$(vTableName)'); 
+				vFieldName = FieldName($(i),'$(vTableName)'); 
+				IF vFieldName <> vKey THEN; 
+					vField		= If(WildMatch(vFieldName, '*дата*', '*период*'), 'Date([$(vFieldName)])', '[$(vFieldName)]');
+					IF vModifier and vFieldName <> vKey THEN; 
+						CALL JoinWords('$(vFieldName)'); 
+						vFieldName = vJoinWords; 
+						vJoinWords = Null(); 
+					ENDIF;  
+					vRename 	= If(vFieldName <> vKey, ', $(vField) as [$(vBaseName).$(vFieldName)]'); 
+					vComments 	= vComments &Chr(13)& 'COMMENT Field [$(vBaseName).$(vFieldName)] With '''& 'Тип: Строка' &Chr(13)& 'Синоним: ' & vFieldName &''';';
+				ENDIF; 
+			NEXT;
+			// Левое объединение таблицы [Generic_2] с текущей таблицей [vTableName]
+			Left Join ([Generic_2]) Load $(vKey) $(vRename) Resident [$(vTableName)]; 
+		ENDIF; 
+		// Удаление временной таблицы [vTableName]
+		DROP Table [$(vTableName)]; 
+	NEXT;
+	
+	// Добавление комментария к таблице [vTABLE] в зависимости от условия
+	IF WildMatch(vTABLE, '* 1', '* 2') THEN; 
+		COMMENT Table [$(vTABLE)] With 'SplitDate: $(vPlanSplitDate)';
+	ELSE; 
+		CALL DropNullFields('Generic_2');  
+	ENDIF; 
+	
+	// Переименование таблицы [Generic_2] в исходное имя [vTABLE] и добавление комментариев
+	RENAME Table [Generic_2] to [$(vTABLE)]; $(vComments);
+
+
+/* Основные шаги, которые выполняет модуль:
+
+1.  Определяет базовое имя таблицы из переменной `vTABLE`.
+2.  Если таблица относится к "Дополнительным реквизитам", создается строка запроса `vString`, которая выбирает значение реквизита в зависимости от его типа.
+3.  Загружает данные во временные таблицы `[Generic_1]`, используя переменные `vKey`, `vAttribute` и `vString`.
+4.  Создает список таблиц `vListOfTables`, содержащий все таблицы с префиксом "Generic_1".
+5.  Формирует строку `vString` с перечислением полей таблицы, кроме полей, соответствующих параметрам `vValue`, `vAttribute`, `vKey` и "*ДополнительныеРеквизиты.Значение*".
+6.  В зависимости от условия формирует строку `vString` с ключевыми полями таблицы.
+7.  Загружает уникальные значения полей `vString` во временную таблицу `[Generic_2]` и удаляет исходную таблицу `[vTABLE]`.
+8.  Для каждой таблицы из `vListOfTables` производит объединение по левому ключу (`$(vKey)`) с таблицей `[Generic_2]` и переименовывает поля, добавляя префикс `[vBaseName]`.
+9.  Удаляет временные таблицы `[vTableName]` после объединения.
+10. Если `vTABLE` соответствует шаблону "* 1" или "* 2", комментирует таблицу `[vTABLE]` с указанием "SplitDate: $(vPlanSplitDate)".
+11. Если vTABLE не соответствует шаблону "* 1" или "* 2", вызывает функцию DropNullFields('Generic_2'), которая удаляет поля с нулевыми значениями из таблицы [Generic_2].
+12. Переименовывает таблицу [Generic_2] в исходное имя [vTABLE] и добавляет комментарии к полям, используя переменную vComments.
+13. Завершает выполнение модуля. */		
+ENDSUB 
+SUB LeftJoin(vTABLE, vSTRING, vDELETE,   vNoOfRowsAfter,vNoOfRowsBefore,vDropTable) 
+	//*********************************************************************************************************************************************************
+	//	05.	Соединение таблиц "vTable_1" и "vTable_2" по полям "vField_1" и "vField_2". Если нет "vField_2", то "vField_2" = "vField_1". 
+	//*********************************************************************************************************************************************************
+
+	vNoOfRowsBefore = NoOfRows('$(vTABLE)'); Left Join([$(vTABLE)]) $(vSTRING); vNoOfRowsAfter 	= NoOfRows('$(vTABLE)') - vNoOfRowsBefore;
+	IF vNoOfRowsAfter <> 0 THEN; TRACE; TRACE	?	Количество строк в  $(vTABLE)  изменилось на $(vNoOfRowsAfter)!!!; TRACE; ENDIF
+	vDropTable = Trim(Right(vSTRING, Len(SubField(Lower(vSTRING), If(SubStringCount(Lower(vSTRING), ' resident ') > 0, ' resident ', ' from '), 2)))); vDropTable = PurgeChar(Trim(SubField(vDropTable, If(Left(vDropTable, 1) = '[', ']', ' '), 1)), '[');
+	IF vDELETE and NoOfRows('$(vDropTable)') > 0 THEN; DROP Table [$(vDropTable)]; ENDIF; CALL DropVars('vTABLE, vSTRING, vDELETE'); 
+ENDSUB
+SUB MinMaxValue(vTable, vField, vType)
+	//*********************************************************************************************************************************************************
+	//	06.	Сворачивание таблицы vTable по максимальному (минимальному) значению поля vField. 
+	//*********************************************************************************************************************************************************
+
+	vString = ''; 
+	FOR vCounter = 1 TO NoOfFields('$(vTable)')  
+	    vCurrentField = FieldName($(vCounter), '$(vTable)');
+	    IF vCurrentField <> vField THEN 
+		    vString = vString & ', [$(vCurrentField)]';
+		ENDIF 
+	NEXT 
+	vString_2 = Right(vString, Len(vString) - 2); 
+	[$(vTable)_2]: NoConcatenate LOAD $(vType)($(vField)) as [$(vField)] $(vString) Resident [$(vTable)] Group By $(vString_2); 
+	DROP Table [$(vTable)]; RENAME Table [$(vTable)_2] to [$(vTable)]; vString = Null(); vString_2 = Null();
+ENDSUB
+SUB RenameField(vOldField, vNewField, vTable)
+	//*********************************************************************************************************************************************************
+	//	08.	Переименовывание поля vOldField на vNewField в таблице vTable. 
+	//*********************************************************************************************************************************************************
+
+	vNewField = If(Match(0, Len(Trim(vNewField)), vNewField), Capitalize(Left(vOldField, 1))&Right(vOldField, Len(vOldField)-1), vNewField); 
+	IF Len(Trim(vTable)) > 0 THEN 
+		IF FieldNumber(vNewField, vTable) > 0 THEN; DROP Field [$(vNewField)] From [$(vTable)]; ENDIF
+		[TempTable]: LOAD Distinct [$(vOldField)] Resident [$(vTable)];
+		Left Join([$(vTable)]) LOAD [$(vOldField)], [$(vOldField)] as [$(vNewField)] Resident [TempTable]; 
+		DROP Table [TempTable]; DROP Field [$(vOldField)] From [$(vTable)];
+	ELSE; IF not IsNull(FieldValueCount('$(vNewField)')) THEN; DROP Field [$(vNewField)]; ENDIF; RENAME Field [$(vOldField)] to [$(vNewField)]; ENDIF; 
+	CALL DropVars('vOldField, vNewField, vTable'); 	
+ENDSUB
+SUB RenameTable(vOLD, vNEW); //TRACE >>>>>>>>>>>>>>>>>>>>>>   RenameTable; 
+//*********************************************************************************************************************************************************
+//	09.	Переименовывание таблицы vOldTable на vNewTable. 
+//*********************************************************************************************************************************************************
+
+	vOLD = If(Match(0, Len(Trim(vOLD)), vOLD), TableName(NoOfTables() - 1), vOLD); //TRACE ===========================   $(vOLD); 
+	vNEW = If(Match(0, Len(Trim(vNEW)), vNEW), If(Left(vOLD, 1) = Lower(Left(vOLD, 1)), Capitalize(Left(vOLD, 1)) & Right(vOLD, Len(vOLD)-1), If(Match(Left(vOLD, 1), '_', '#', '@', '$'), Right(vOLD, Len(vOLD)-1))), vNEW);  //TRACE >>>>>>>>>>>>>>>>>>>>>>   $(vOLD)  $(vNEW); 
+	IF vOLD >= 0 and vOLD <> vNEW THEN; IF NoOfRows(vNEW) >= 0 THEN; DROP Table [$(vNEW)]; ENDIF; RENAME Table [$(vOLD)] to [$(vNEW)]; ENDIF; CALL DropVars('vOLD,vNEW'); 
+ENDSUB
+SUB Rename(vTABLE, vTable,vField,vCounter,vCurField); $(vCheckTable); //TRACE >>>>>>>>>>>>>>>>>>>>>>   RenameTable; 
+//*********************************************************************************************************************************************************
+//	10.	Переименовывание таблицы и полей с префиксом '_' . 
+//*********************************************************************************************************************************************************
+
+	vTable = If(Match(Left(vTABLE, 1), '_', '#', '@', '$'), Right(vTABLE, Len(vTABLE)-1), If(Match(Right(vTABLE, 1), '_', '#', '@', '$'), Right(vTABLE, Len(vTABLE)-1), If(Left(vTABLE, 1) = Lower(Left(vTABLE, 1)), Capitalize(Left(vTABLE, 1)) & Right(vTABLE, Len(vTABLE)-1))));
+	IF NoOfRows(vTABLE) >= 0 and vTABLE <> vTable THEN; IF NoOfRows(vTable) >= 0 THEN; DROP Table [$(vTable)]; ENDIF; RENAME Table [$(vTABLE)] to [$(vTable)]; ENDIF; //CALL DropVars('vTABLE,vFIELD,vTable,vField'); 
+	FOR vCounter = 1 to NoOfFields('$(vTable)');  vCurField = FieldName($(vCounter), '$(vTable)');  //asd = NoOfRows(vTABLE); LOAD MsgBox('$(vTABLE)-$(vTable)-$(asd)') AutoGenerate 1;
+		IF WildMatch(vCurField, '_*', '*_') THEN; vField = Pick(WildMatch(vCurField, '_*', '*_'),  Right(vCurField, Len(vCurField)-1), Left(vCurField, Len(vCurField)-1)); 
+			IF FieldNumber('$(vField)', '$(vTable)') > 0 THEN; DROP Field [$(vField)] From [$(vTable)]; ENDIF; RENAME Field [$(vCurField)] to [$(vField)]; ENDIF; NEXT;
+ENDSUB
+SUB Store(vTABLE, vREMOVE, vDATEFIELD, vNEWTABLE, vFOLDER,	vDateField,vNewTable,vCounter,vCurField,vDate,$(VA)); TRACE ------------------- Store; $(vCheckTable); 
+//*********************************************************************************************************************************************************
+//	12.	Сохранение таблицы vTable и удаление vRemove. 
+//*********************************************************************************************************************************************************
+
+	vNewTable 		= If(Len(vNEWTABLE) = 0 or vNEWTABLE = 0, vTABLE, vNEWTABLE); // LOAD MsgBox('$(vDATEFIELD)') AutoGenerate 1;// EXIT SUB
+	IF vLoadType = 'Day' and vNewTable like '* 2' and not Subfield(vNewTable, '\', -1) like '# *' THEN; //LOAD MsgBox('$(vLoadType)') AutoGenerate 1;
+		IF $(vQvdExists('$(vQvdPath)\$(vNewTable).qvd')) THEN;  
+			[$(vTABLE)]: Concatenate ([$(vTABLE)]) LOAD * From [$(vQvdPath)\$(vNewTable).qvd] (qvd) Where [$(vDATEFIELD)] < '$(vDaySplitDate)'; 
+		ENDIF; 
+	ENDIF;  
+	IF Subfield(vNewTable, '\', -1) like '# * 2' and not vTotalSplit THEN; CALL GetFileSplit(vQvdPath &'\'& Replace(vNewTable, ' 2', ' 1') & '.qvd'); //v1 = Subfield(vNewTable, '\', -1); LOad MsgBox('$(v1)') Autogenerate 1;
+		IF vFileSplitDate <> vPlanSplitDate THEN; 
+			FOR vCounter = 1 to NoOfFields('$(vTABLE)'); vCurField = FieldName($(vCounter), '$(vTABLE)'); IF WildMatch(vCurField, '*.Период', '*.Дата', 'Дата') THEN; vDATEFIELD = vCurField; ENDIF; NEXT;// LOAD MsgBox('$(vDATEFIELD)') AutoGenerate 1;// EXIT SUB	
+			NoConcatenate [TEMP]: LOAD * Resident [$(vTABLE)] 						Where [$(vDATEFIELD)] >= '$(vPlanSplitDate)'; DROP Table [$(vTABLE)];
+						  [TEMP]: LOAD * From [$(vQvdPath)\$(vNewTable).qvd] (qvd) 	Where [$(vDATEFIELD)] <  '$(vPlanSplitDate)'; RENAME Table [TEMP] to [$(vTABLE)];
+		ENDIF
+	ENDIF; 
+//	IF Subfield(vNewTable, '\', -1) like '# * 1' THEN; COMMENT Table [$(vTABLE)] With 'SplitDate: $(vPlanSplitDate)'; ENDIF; 
+	IF vNewTable like '# * 1' THEN; COMMENT Table [$(vTABLE)] With 'SplitDate: $(vPlanSplitDate)'; ENDIF; 
+	// COMMENT Table [$(vTABLE)] With 'SplitDate: $(vPlanSplitDate)'; 
+	// COMMENT Table [$(vNewTable)] With 'SplitDate: $(vFileSplitDate)';
+	IF WildMatch(Subfield(vTABLE, ' ', 1), '*.Остатки', '*.Итоги') and not Subfield(vNewTable, '\', -1) like '# *' THEN; 
+		IF not vTABLE like '*ИтогиПоСчетамССубконто*' THEN // Пока убрали дорасчет итогов с субконто, там капес непросто
+			CALL РасчетИтогов('$(vTABLE)'); 
+		ENDIF
+	ENDIF;  //	 and vTABLE like 'РегистрНакопления*' 
+	IF NoOfRows('$(vTABLE)') > 0 THEN; 
+		SET ErrorMode = 0; 
+		FOR V1 = 1 to 100; SET ScriptError = 0;
+			STORE [$(vTABLE)] into [$(vQvdPath)\$(vNewTable).qvd] (qvd); 
+			IF ScriptError = 0 THEN; EXIT FOR; ELSE; SLEEP 10000; ENDIF;
+		NEXT
+		SET ErrorMode = 1; 	
+	ENDIF;
+	IF vREMOVE and NoOfRows('$(vTABLE)') >= 0 THEN; DROP Table [$(vTABLE)]; ENDIF; CALL DropVars('vTABLE, vREMOVE, vDATEFIELD, vNEWTABLE');	
+	
+ENDSUB
+SUB FillEmptyValues(vTABLE, vFIELDS, vVALUE,   vFields,vValue,vCounter,vString,vCurField,vОбъектСсылка); $(vCheckTable);
+//*********************************************************************************************************************************************************
+//	14.	Заполнение пустых значений в таблице vTable полей vFields значением vValue
+//*********************************************************************************************************************************************************
+
+	IF NoOfRows('$(vTABLE)') > 0 THEN;  
+		vОбъектСсылка = If(vTABLE like '# *',  SubField(vTABLE, ' ', 2), SubField(vTABLE, '.', 2)); 
+		IF FieldNumber('$(vОбъектСсылка).Ссылка', '$(vTABLE)') > 0 THEN; 
+			Concatenate([$(vTABLE)]) LOAD '00000000000000000000000000000000' as [$(vОбъектСсылка).Ссылка] AutoGenerate 1;
+			Concatenate([$(vTABLE)]) LOAD '' as [$(vОбъектСсылка).Ссылка] AutoGenerate 1;
+		ENDIF
+		vFields 	= If(Len(vFIELDS) = 0, 0, vFIELDS);
+		vValue 		= If(Len(vVALUE) = 0, '', vVALUE); 
+		vString 	= ''; 
+		FOR vCounter = 1 TO NoOfFields('$(vTABLE)')  
+		    vCurField = FieldName($(vCounter), '$(vTABLE)');
+		    vString = vString &', '&chr(13)& If(WildMatch(vCurField, '$(vFields)') or vFields = 0, 'If(Len(Trim([$(vCurField)])) = 0, ''$(vValue)'', [$(vCurField)]) as [$(vCurField)]', '[$(vCurField)]');
+		NEXT 
+	    vString = Right(vString, Len(vString) - 2);  
+	    [$(vTABLE)_2]: NoConcatenate LOAD $(vString) Resident [$(vTABLE)]; DROP Table [$(vTABLE)]; RENAME Table [$(vTABLE)_2] to [$(vTABLE)];
+    ENDIF; CALL DropVars('vTABLE, vFIELDS, vVALUE');
+ENDSUB
+SUB AddRecorderType(vTABLE, vFIELD, vCounter, vCurField,vField) 
+//*********************************************************************************************************************************************************
+//	17.	Добавление типа регистратора. 
+//*********************************************************************************************************************************************************
+
+	[TEMP]: LOAD Distinct Keepchar([ИмяХранения], '0123456789') as [ТипРегистратора],[Синоним] as [ИмяРегистратора] Resident [Metas] Where WildMatch([ИмяХранения], '_document*', '_Reference*') and not [ИмяХранения] like '_*_*';
+	IF Len(vFIELD) = 0 THEN
+		FOR vCounter = 0 TO NoOfFields('$(vTABLE)') - 1  
+		    vCurField = FieldName($(vCounter), '$(vTABLE)');
+		    IF 	WildMatch(vCurField, '*РегистраторТип', '*TRef') THEN
+				Left Join([$(vTABLE)]) LOAD [ТипРегистратора] as [$(vCurField)], [ИмяРегистратора] as [ИмяРегистратора$(vCounter)]  Resident [TEMP];
+				DROP Field [$(vCurField)] From [$(vTABLE)]; RENAME Field [ИмяРегистратора$(vCounter)] to [$(vCurField)];
+			ENDIF
+		NEXT
+	ELSE
+		Left Join([$(vTABLE)]) LOAD [ТипРегистратора] as [$(vFIELD)], [ИмяРегистратора] Resident [TEMP];
+		CALL RenameField('ИмяРегистратора', '$(vFIELD)', '$(vTABLE)'); 
+	ENDIF
+	DROP Tables [TEMP]; CALL DropVars('vTABLE, vFIELD');
+ENDSUB
+SUB AddObjectType(vTable, vType, vFields,vField,vCounter,vCurrentField) 
+//*********************************************************************************************************************************************************
+//	18.	Добавление типа регистратора. 
+//*********************************************************************************************************************************************************
+
+	vType	= If(vType = 0 or len(vType) = 0, '[Представление]', '[Синоним]');
+	[Table_41]: LOAD Distinct Keepchar([ИмяХранения], '0123456789') as [ТипРегистратора], $(vType) as [ИмяРегистратора] Resident [Metas] Where WildMatch([ИмяХранения], '_document*', '_Reference*') and not [ИмяХранения] like '_*_*';
+	IF Len(vField) = 0 or vField = 0 THEN
+		FOR vCounter = 0 TO NoOfFields('$(vTable)') - 1  
+		    vCurrentField = FieldName($(vCounter), '$(vTable)');
+		    IF 	WildMatch(vCurrentField, '*РегистраторТип', '*TRef') THEN
+				Left Join([$(vTable)]) LOAD [ТипРегистратора] as [$(vCurrentField)], [ИмяРегистратора] as [ИмяРегистратора$(vCounter)]  Resident [Table_41];
+				DROP Field [$(vCurrentField)] From [$(vTable)]; RENAME Field [ИмяРегистратора$(vCounter)] to [$(vCurrentField)];
+			ENDIF
+		NEXT
+	ELSE
+		vFields = Trim(If(Left(vFields, 1) = ',', Right(vFields, Len(vFields)-1), vFields));
+		FOR vCounter = 1 to SubStringCount(vFields, ',') + 1 
+			vField_41 = Trim(SubField(vFields, ',', vCounter)) 
+			Left Join([$(vTable)]) LOAD [ТипРегистратора] as [$(vField_41)], [ИмяРегистратора] Resident [Table_41];
+			DROP Field [$(vField_41)] From [$(vTable)]; RENAME Field [ИмяРегистратора] to [$(vField_41)];
+		NEXT		
+	ENDIF
+	DROP Tables [Table_41]; vCounter = Null(); vCurrentField = Null();
+ENDSUB 
+SUB AddEnumes(vTABLE, vENUMES,    vEnumes, vEnume, vCounter, vField); 	
+//*********************************************************************************************************************************************************
+//	19.	Добавление перечислений к таблице vTable. 
+//*********************************************************************************************************************************************************
+
+				//	Load msgbox(1) AutoGenerate 1;
+	vEnumes = Trim(If(Left(vENUMES, 1) = ',', Right(vENUMES, Len(vENUMES) - 1), '')); 	
+	IF Len(vEnumes) > 0 THEN; 
+		FOR vCounter = 1 to SubStringCount(vEnumes, ',') + 1  
+		    vEnume = Trim(SubField(SubField(vEnumes, ',', vCounter), '-', 1));			
+		    vField = Trim(SubField(SubField(vEnumes, ',', vCounter), '-', 2));			
+		    Left Join([$(vTABLE)]) LOAD [Enums.Синоним] as [Synonym], [Enums.Порядок] as [$(vField)] Resident [Enums] Where [Enums.Перечисление] = Replace('$(vEnume)', 'Перечисление.', '');
+		    TRACE =============================== RENAME Field [Synonym];
+		    DROP Field [$(vField)] From [$(vTABLE)]; RENAME Field [Synonym] to [$(vField)];
+		NEXT
+	ENDIF; CALL DropVars('vTABLE, vENUMES');
+ENDSUB 
+SUB AddTypes(vTable, vTypeFields,vField)  
+//*********************************************************************************************************************************************************
+//	19-1.	Добавление типов к таблице vTable. 
+//*********************************************************************************************************************************************************
+
+	vTypeFields = Trim(If(Left(vTypeFields, 1) = ',', Right(vTypeFields, Len(vTypeFields) - 1), vTypeFields)); 
+	[Table.19]: LOAD Distinct Keepchar([ИмяХранения], '0123456789') as [Type], [Синоним] as [Synonym] Resident [Metas] Where WildMatch([ИмяХранения], '_document*', '_Reference*', '_CKinds*') and not [ИмяХранения] like '_*_*';
+	IF Len(vTypeFields) > 0 THEN
+		FOR vCounter.19 = 1 to SubStringCount(vTypeFields, ',') + 1  
+		    vField 	= Trim(SubField(vTypeFields, ',', vCounter.19));
+		    TRACE =============================== RENAME Field [Synonym];
+		    Left Join([$(vTable)]) LOAD [Type] as [$(vField)], [Synonym] as F19 Resident [Table.19]; 
+			DROP Field [$(vField)] From [$(vTable)]; RENAME Field F19 to [$(vField)]; 
+		NEXT
+	ENDIF;  Drop Table [Table.19]; vCounter.19 = Null(); //vLastTable = TableName(NoOfTables()-1); DROP Table [$(vLastTable)];
+ENDSUB 
+SUB Calendar(vSTART,vEND,vTABLE,vTYPE,   vTable,vDecade,vCorpWeek,vSpace,vNielsen,vLanguage,vPeriod,vPeriodsRu,vPeriodsEn,MonthsOld,DaysOld,vP,П1,П2,T1,T2,К1,К2,М1,М2,Д2,Н1,Н2) 
+//*********************************************************************************************************************************************************
+//	20.	Загрузка календаря. 
+//*********************************************************************************************************************************************************
+
+	vTABLE 		= If(Len(Trim(vTABLE)) = 0, 'Календарь', vTABLE);
+	vSTART 		= If(Len(Trim(vSTART)) = 0, Date('01.01.2001'), Date(vSTART));
+	vEND		= If(Len(Trim(vEND))   = 0, Date(YearEnd(Today(), 1)), Date(vEND));
+	vTYPE		= If(Len(Trim(vTYPE))  = 0, 111, Num(Left(vTYPE & '000', 3))); 
+	vLanguage	= Mid(vTYPE, 2, 1);
+	vDecade 	= 'if(Day(Дата) < 11, 1, if(Day(Дата) > 10 and Day(Дата) < 21, 2, 3))'; 
+	vCorpWeek 	= 'AutoNumber(If(Week(Дата-4) = Week(YearEnd(Дата-4)) and Floor(YearEnd(Дата-4)) - Floor(WeekStart(Дата-4)-1) < 7, 1, Week(Дата-4)), Year(Дата) & Month(Дата))';
+	vNielsen	= 'Dual(Pick(Match(Num(Month(Дата)), 1,2,3,4,5,6,7,8,9,10,11,12), ''DJ'',''FM'',''FM'',''AM'',''AM'',''JJ'',''JJ'',''AS'',''AS'',''ON'',''ON'',''DJ''), If(Num(Month(Дата)) = 1, 6, floor(Num(Month(Дата)) / 2)))';
+	vSpace		= If(Mid(vTYPE, 3, 4) = 1, ' ', ' - ');
+	vPeriodsRu	= '''Полугодие'', ''Триместр'', ''Квартал'', ''Месяц'', ''Декада'', ''Неделя''';
+	vPeriodsEn	= '''Semester'', ''Trimester'', ''Quarter'', ''Month'', ''Decade'', ''Week''';
+	MonthsOld	= MonthNames; MonthNames	= If(vLanguage = 2, 'Jan;Feb;Mar;Apr;May;Jun;Jul;Aug;Sep;Oct;Nov;Dec', 'янв;фев;мар;апр;май;июн;июл;авг;сен;окт;ноя;дек');
+	DaysOld		= DayNames; DayNames = If(vLanguage = 2, 'Mon;Tue;Wed;Thu;Fri;Sat;Sun', 'Пн;Вт;Ср;Чт;Пт;Сб;Вс');
+
+	[TEMP]: LOAD *, [Дата] as [Date]; LOAD Date('$(vSTART)' + IterNo() - 1) as [Дата] AutoGenerate 1 While Date('$(vSTART)' + IterNo() - 1) < '$(vEND)';
+//	TRACE >>>>>>>>>>>>>> $(vTYPE);
+	
+	IF Left(vTYPE, 1) > 0 THEN
+		Left Join(TEMP) [JOIN]: LOAD 													   	   [Дата],
+			Year(Дата) 																		as [Год],
+			Year(Дата) &' '& Dual(Month(Дата), 	Month(Дата))								as [ГодМесяц],
+			Dual(Month(Дата), 	Month(Дата)) &' '& Year(Дата)  								as [МесяцГод],
+			Dual(Month(Дата), 	Month(Дата)) 												as [Месяц],
+			Dual(WeekDay(Дата), WeekDay(Дата)) 												as [ДеньНедели],
+			Day(Дата) 																		as [Число]	 
+		Resident [TEMP]; CALL RenameTable;
+	ENDIF; IF Left(vTYPE, 1) > 1 THEN
+		FOR Each vPeriod in $(vPeriodsRu); vP = Left(vPeriod, 1); vPeriod = If(vLanguage = 2, Pick(Match(vPeriod, $(vPeriodsRu)), $(vPeriodsEn)), vPeriod); [$(vP)1] = Pick(Match(Mid(vTYPE, 3, 1), 1, 2), '', Left(vPeriod, 1)); [$(vP)2] = Pick(Match(Mid(vTYPE, 3, 1), 1, 2), ' '& Lower(vPeriod), ''); NEXT
+		Left Join(TEMP) [JOIN]: LOAD 													       [Дата],
+			'$(П1)' & Ceil(Num(Month(Дата), '0') / 6)						& '$(П2)'		as [Полугодие],
+			'$(T1)' & Ceil(Month(Дата)/4) 									& '$(T2)'		as [Триместр], 
+			'$(К1)' & Ceil(Num(Month(Дата), '0') / 3) 						& '$(К2)'		as [Квартал],
+			'$(М1)' & Num(Month(Дата), '00') 								& '$(М2)'		as [НомерМесяца],
+			'$(Д1)' & $(vDecade) 											& '$(Д2)'		as [Декада],
+			'$(Н1)' & Num(Week(Дата), '00')									& '$(Н2)'		as [НеделяГода],
+			'$(Н1)' & AutoNumber(Week(Дата), Year(Дата) & MonthName(Дата)) 	& '$(Н2)'		as [НеделяМесяца],
+			'$(Н1)' & $(vCorpWeek) 											& '$(Н2)'		as [НеделяКорпоративная]
+		Resident [TEMP]; 
+		Left Join(TEMP) [JOIN]: LOAD													       [Дата],
+			[Год] & '$(vSpace)' & [Полугодие]												as [ГодПолугодие],
+			[Год] & '$(vSpace)' & [Триместр]												as [ГодТриместр], 
+			[Год] & '$(vSpace)' & [Квартал]													as [ГодКвартал], 
+			[Год] & '$(vSpace)' & [НомерМесяца]												as [ГодНомерМесяца],  
+			[Год] & '$(vSpace)' & [НеделяГода]												as [ГодНеделяГода],  
+			[МесяцГод] & ' - ' 	& [Декада]													as [МесяцГодДекада], 
+			[МесяцГод] & ' - ' 	& [НеделяМесяца]											as [МесяцГодНеделяМесяца], 
+			[МесяцГод] & ' - ' 	& [НеделяКорпоративная]										as [МесяцГодНеделяКорпоративная]
+		Resident [TEMP]; 		
+	ENDIF; IF Left(vTYPE, 1) > 3 THEN
+		Left Join(TEMP) [JOIN]: LOAD 													   [Дата],
+	 		Dual([Год] & ' ' & $(vNielsen), [Год] & If(Num(Month(Дата)) = 1, 6, floor(Num(Month(Дата)) / 2))) as [ГодДваМесяца]
+		Resident [TEMP]; CALL RenameTable;
+	ENDIF; 
+	MonthNames = MonthsOld; DayNames = DaysOld;
+	CALL RenameTable('TEMP', '$(vTABLE)'); CALL DropVars('vSTART,vEND,vTABLE,vTYPE'); 
+ENDSUB
+SUB BalanceCalendar
+//*********************************************************************************************************************************************************
+//	21.	Календарь остатков.
+//*********************************************************************************************************************************************************
+
+	[КалендарьОстатков]: LOAD Дата, Year(Дата) & Num(Month(Дата)) as [ГодМесяц] Resident Календарь; Left Join LOAD [ГодМесяц], Дата as [Период] Resident [КалендарьОстатков]; 
+	Inner Join LOAD Дата, [Период], If(Дата = Период, 0, 1) as ТипДней Resident [КалендарьОстатков] Where Дата >= [Период]; DROP Field ГодМесяц From [КалендарьОстатков];
+ENDSUB
+SUB CutWords(vString,vChar,i)
+//*********************************************************************************************************************************************************
+//	23.	Разделение сплошной стороки vString на слова, если они наыинаются с заглавной буквы.
+//*********************************************************************************************************************************************************
+
+    IF Len(vString) > 0 THEN; vOut = Mid(vString, 1, 1); FOR i = 2 To Len(vString); 
+    vChar = Mid(vString, i, 1); vOut = vOut & If(vChar = Upper(vChar), ' ' & Lower(vChar), vChar); NEXT; vString = vOut; vOut = Null(); ENDIF
+ENDSUB
+SUB JoinWords(vString,vChar,i)
+//*********************************************************************************************************************************************************
+//	24.	Разделение сплошной стороки vString на слова, если они наыинаются с заглавной буквы.
+//*********************************************************************************************************************************************************
+
+    IF Len(vString) > 0 THEN; vOut = Upper(Mid(vString, 1, 1)); vUpper	= 0; FOR i = 2 To Len(vString)
+	vChar = Mid(vString, i, 1); vOut = vOut & If(vChar = ' ',  '', If(vUpper, Upper(vChar), vChar)); vUpper	= If(vChar = ' ', 1, 0); NEXT; vJoinWords = vOut; vOut = Null(); vUpper = Null(); ENDIF
+ENDSUB
+SUB ComonSelect(vSELECTNO,   vFirstObject,vCounter)	
+//*********************************************************************************************************************************************************
+//	25.	Загрузка объектов метаданных из базы sql по предустановленным значениям.
+//*********************************************************************************************************************************************************
+	NoConcatenate [GrandTable]: LOAD ИмяТаблицыQV, RowNo() as [ObjectNo] Resident [Metas] Where WildMatch([Назначение], 'ТабличнаяЧасть', 'Основная', 'Итоги*', 'ЗначенияСубконто', 'НастройкиХраненияИтогов*') and [Select$(vSELECTNO)] >= 0 and [ИмяТаблицыQV] = [Представление];// and [КоличествоСтрок] > 0; //   and ИмяТаблицыQV like 'Справочник.*'  , 'РегистрСведений.*' 'Справочник.*' and WildMatch([ИмяТаблицы], 'РегистрСведений.*')  and not WildMatch([ИмяТаблицыQV], 'Р*', 'Д*', 'Ж*', 'З*', 'Б*', 'П*')
+	vFirstObject = Lookup('ObjectNo', 'ИмяТаблицыQV', 'РегистрНакопления.СвободныеОстатки.Остатки_', [GrandTable]);  //УсловияТруда  КодыВалютныхОпераций  ФизическиеЛицаПрисоединенныеФайлы ШтатноеРасписание
+   	FOR vCounter = 0 to NoOfRows('GrandTable') - 1
+   		IF (Peek('ObjectNo', $(vCounter), 'GrandTable') > vFirstObject or Len(vFirstObject) = 0) and Len(Peek('ИмяТаблицыQV', $(vCounter), 'GrandTable')) > 0 THEN; 
+			CALL Select(Peek('ИмяТаблицыQV', $(vCounter), 'GrandTable'), '$(vSELECTNO)'); ENDIF
+	NEXT; DROP Table [GrandTable]; CALL DropVars('vSELECTNO');
+ENDSUB
+SUB GetRandom
+//*********************************************************************************************************************************************************
+//	26.	Генерирует произвольное значение и присваивает его переменной vRandom.
+//*********************************************************************************************************************************************************
+	vRandom = Ceil(RAND()*100) +0*Now(1);
+ENDSUB
+SUB Load(vTABLE,vLOADTYPE,vMASTERTABLE,vLEVEL,		vObject_1,vObject_2,vObject_A1,vObject_B2,vMasterObject_1,vMasterObject_2,vMasterObject_B2,vMasterFields,vMasterField,vMasterKey,vSLAVELIST,vFieldList,vMark,vString,vExists,vRowNo,vFieldName,vSlaveList,vFieldType,vSynonym,vSlaveKey,vTable,vValue,vDateField,vFields) 
+//*********************************************************************************************************************************************************
+//	28.	Загрузка таблицы vTable из QVD файла. vFields: 0 - все поля, 1 - указанные в Метаданных с необходимыми названиями.
+//*********************************************************************************************************************************************************
+	CALL DropVars('vString,vSlaveList,vFieldList,vWhereDate');
+	
+	vTABLE					= If(SubStringCount(vQvdFiles, vTABLE & '.qvd') = 0 and SubStringCount(vTABLE, '*') = 0, vTABLE & ' *', vTABLE);
+	vLOADTYPE				= If(not Match(vLOADTYPE, 'Master', 'Child', 'Slave', 'Append', 'Leftjoin', 'OuterJoin'), 'Master', vLOADTYPE)
+	vLEVEL 					= If(Len(Trim(vMASTERTABLE)) = 0, 1, vLEVEL); 
+	vModel					= If(not Match(vLOADTYPE, 'Master', 'Child', 'Slave', 'Append', 'Leftjoin', 'OuterJoin'), vLOADTYPE, vModel)
+	vObject_1 				= SubField(vTABLE, '.', 1);
+	vObject_2 				= SubField(SubField(vTABLE, '.', 2), ' ', 1);
+	vObject_A1 				= Right(vTABLE, Len(vTABLE) - Index(vTABLE, '.', 1));
+	vObject_B2 				= If(SubStringCount(vTABLE, '.') > 1, Left(vTABLE, Index(vTABLE, '.', 2) -1), SubField(vTABLE, ' ', 1));
+	vMasterObject_1 		= SubField(vMASTERTABLE, '.', 1);
+	vMasterObject_2 		= SubField(SubField(vMASTERTABLE, '.', 2), ' ', 1);
+	vMasterObject_B2 		= If(SubStringCount(vMASTERTABLE, '.') > 1, Left(vMASTERTABLE, Index(vMASTERTABLE, '.', 2) -1), SubField(vMASTERTABLE, ' ', 1));
+
+	vMasterFields			= Trim(Lookup('FieldList', 'Table', vMASTERTABLE, 'Tables'));
+	vSLAVELIST				= Lookup('SlaveList', 'Table', vMASTERTABLE, 'Tables');
+	vMasterKey				= SubField(SubField(vMasterFields, vObject_B2, 1), ';', -2);
+	vMasterField			= SubField(SubField(vMasterFields, vObject_B2, 2), ';',  2); 																															//TRACE ============ vMasterKey = $(vMasterKey), vMasterField = $(vMasterField);
+	
+	vTableExists			= If(IsNull(Lookup('Table', 'Table', '$(vTABLE)', 'Tables')), 0, 1);
+	vDateField 				= If(vTABLE like 'Документ.*', 'Дата', 'Период'); 
+	vMark					= Replace(vTABLE, ' ', '');
+	vBalance				= If(vBalance = 1, 1, If(vTABLE like '*.Остатки' and vTABLE like SubField(vMASTERTABLE, ' ') &'.*', 1, 0));
+	vTable					= If(vTableExists, vTABLE &' ('& vMasterObject_2 &')', vTABLE);
+	
+	IF SubStringCount(Left(vSLAVELIST, Index(vSLAVELIST, Chr(13), -1)), vTABLE) > 0 THEN; //vString  = '[' & vObject_2 & '.Ссылка] as [$(vMasterKey)], [' & vObject_2 & '.Наименование] as [' & vMasterObject_2 &'.'& vObject_A1 & ']'; [$(vTable)]: LOAD $(vString) From [$(vRootPath)\$(vTABLE).qvd] (qvd);
+	ELSE; 																																																			//TRACE =================== Полная загрузка  $(vTABLE) << $(vLEVEL) >>;
+		[Header]: LOAD Distinct FieldName, Comment FROM [$(vRootPath)\$(vTABLE).qvd] (XmlSimple, Table is [QvdTableHeader/Fields/QvdFieldHeader]);
+		FOR vRowNo = 0 to NoOfRows('Header') 
+			vFieldName		= Peek('FieldName', $(vRowNo));
+			vFieldType		= SubField(SubField(Peek('Comment', 	$(vRowNo)), Chr(10), 1), ': ', 2);
+			vSynonym		= SubField(SubField(Peek('Comment', 	$(vRowNo)), Chr(10), 2), ': ', 2); 
+			vSlaveKey		= If(vObject_1 = 'Справочник', vObject_2 & '.', '') & SubField(vFieldType, '.', 2) & '.Ссылка'; 																						//TRACE ==============	'$(vFieldName)'  '$(vFieldType)'  '$(vSynonym)' '$(vSlaveKey)';		
+
+			vNewName		= If(Match(vFieldType, 'Дата', 'Число', 'Строка') and Len(Trim(vSynonym)) > 0 and not Match(vSynonym, 'Родитель', 'Ссылка'), vSynonym, vFieldName); 									//TRACE ==============	'$(vNewName)';		
+			vNewName		= If(WildMatch(vFieldType, 'Справочник.*', 'Документ.*') and vFieldType <> vObject_B2 and vFieldName like '*.Ссылка', vSlaveKey, vNewName);												//TRACE ==============	'$(vNewName)';		
+			vNewName		= If(vObject_1 = 'Справочник' and vSynonym = 'Наименование' and Len(vMasterField) > 0, vMasterField, vNewName); 																		//TRACE ==============	'$(vNewName)';		
+			vNewName		= If(not IsNull(FieldValueCount('$(vNewName)')) and not Match(vNewName, 'Дата'), vNewName &' ('& vMasterObject_2 &')', vNewName);  														//TRACE ==============	'$(vNewName)';		
+			vNewName		= If(Match(vLOADTYPE, 'Child', 'Slave') and vFieldName = vObject_2 & '.Ссылка', vMasterKey, vNewName); 																					//TRACE ==============	'$(vNewName)';		
+			vNewName		= If(vObject like 'Регистр*' and vFieldName like '*.ВидДвижения',  'ВидДвижения', vNewName);
+			vNewName		= If(vLOADTYPE = 'Append' and 	  vTABLE like vMasterObject_B2 &'.Остатки*', Subfield(SubField(vMasterFields, Replace(vFieldName, '.Остатки', ''), 2), ';', 2), vNewName); 				//TRACE ==============	'$(vNewName)';
+
+			vNewName		= If(vLOADTYPE = 'Append' and not vTABLE like vMasterObject_B2 &'.Остатки*', Subfield(SubField(vMasterFields, Replace(vFieldName, vObject_2, vMasterObject_2), 2), ';', 2), vNewName); 	//TRACE ==============	'$(vNewName)';
+			vNewName		= If(Len(Trim(vNewName)) = 0, If(not IsNull(FieldValueCount('$(vSynonym)')), vFieldName, vSynonym), vNewName); 																			//TRACE ==============	'$(vNewName)';
+
+			vString			= vString & If(Len(Trim(vFieldName)) > 0, '[' & vFieldName & '] as [' & vNewName & '],' & Chr(13), '');
+			vSlaveList		= vSlaveList & If(WildMatch(vFieldType, 'Справочник.*', 'Документ.*') and vFieldName like '*.Ссылка' and vSynonym <> 'Ссылка' and IsNull(Lookup('FieldName', 'FieldName', Replace(vFieldName, '.Ссылка', ''), 'Header')) and If(vLOADTYPE = 'Append' and not IsNull(TableNumber('$(vFieldType)')), False(), True()), ',''' & vFieldType & ';' & vSynonym & ';' & vNewName & '''', ''); 
+			vFieldList		= vFieldList & vFieldName &';'& vNewName &';'& vFieldType &';'& vSynonym  &';'& Chr(13);
+			vFields 		= vFields & If(not WildMatch(vFieldName, '*.Ссылка') and Len(Trim(vFieldType)) > 0 and IsNull(FieldValueCount('$(vNewName)')), vTABLE &';'& vNewName &';'& vFieldType &';'& Chr(13), ''); 			// Поля для измерений и выражений
+
+		NEXT; 	DROP Table [Header]; 																																												//TRACE ==============	'$(vFields)';
+		vString				= Left(Trim(vString), len(Trim(vString)) - 1) & If(vTABLE like '*.Остатки' and vTABLE like SubField(vMASTERTABLE, ' ') &'.*', ','& Chr(13) &'0 as [ВидДвижения]', '');
+		vSlaveList 			= Right(Trim(vSlaveList), len(Trim(vSlaveList)) - 1);
+		vFieldList			= Trim(vFieldList);
+		IF vPeriodEnabled and WildMatch('$(vString)', '*[$(vObject_A1).$(vDateField)] as *') THEN; 
+			Left Join(Календарь) LOAD Дата, Дата as [$(vObject_A1).$(vDateField)] Resident Календарь;
+			vWhereDate  = 'Where Exists([$(vObject_A1).$(vDateField)])';  
+		ENDIF;
+		
+		Tables: LOAD '$(vModel)' as Model, '$(vTable)' as Table, '$(vFieldList)' as FieldList, '$(vSLAVELIST)' &','& '$(vSlaveList)' as SlaveList, '$(vLEVEL)' as Level AutoGenerate 1;
+		[$(vTable)]: LOAD $(vString) From [$(vRootPath)\$(vTABLE).qvd] (qvd) $(vWhereDate);
+			
+		FOR Each vValue in $(vSlaveList); vFieldType = SubField(vValue, ';', 1); IF vFieldType <> vTABLE and $(vQvdExists('$(vRootPath)\$(vFieldType).qvd')) THEN; CALL Load('$(vFieldType)', 'Slave', '$(vTABLE)', '$(vLEVEL)' +1); ENDIF; NEXT; 
+	 	
+		NoConcatenate [TabParts$(vMark)] : LOAD Path as Path.2 Resident QvdPaths Where Path like '$(vRootPath)\'& If(SubStringCount('$(vTABLE)', ' ') > 0, Replace('$(vTABLE)', ' ', '.* '), '$(vTABLE)' & '.*') & '.qvd'; 
+					  [TabParts$(vMark)] : LOAD Path as Path.2 Resident QvdPaths Where Path like '$(vRootPath)\'& SubField('$(vTABLE)', ' ', 1) & '.*' & '.qvd' and not Exists (Path.2, Path) and SubStringCount(SubField(Path, '\', -1), ' ') = 0; 
+		NoConcatenate [tabParts$(vMark)] : LOAD Distinct If(SubStringCount('$(vTABLE)', '*') > 0, Replace(Replace(Path.2, '1', '*'), '2', '*'), Path.2) as Path.2 Resident [TabParts$(vMark)] Where not SubField(Path.2, '\', -1) like '*.НастройкиХранения*'; CALL RenameTable
+
+		IF NoOfRows('TabParts$(vMark)') > 0 THEN; FOR vRowNo = 0 to NoOfRows('TabParts$(vMark)')-1; CALL Load( SubField(SubField(Peek('Path.2', $(vRowNo), 'TabParts$(vMark)'), '\', -1), '.qvd', 1), If(vObject_1 like 'Регистр*', 'Append', 'Child'), If(vObject_1 like 'Регистр*', '$(vTABLE)', '$(vMASTERTABLE)'), '$(vLEVEL)'); NEXT; ENDIF; DROP Table [TabParts$(vMark)];
+		
+		IF vLOADTYPE = 'Append' THEN; Concatenate([$(vMASTERTABLE)]) LOAD * Resident [$(vTable)]; DROP Table [$(vTable)]; ENDIF;
+
+	ENDIF; CALL DropVars('vTABLE,vMasterField,vMasterKey,vMASTERTABLE,vSLAVEJOINLIST');
+ENDSUB
+SUB IntervalMatch(vTABLE, vFIELD, vCALENDAR,	vTableName,vNoOfRowsBefore,vNoOfRows); TRACE ------------------------------ IntervalMatch vDateStart '$(vDateStart)'; $(vCheckTable); 
+//*********************************************************************************************************************************************************
+//	30.	Получение интервалов и заполнение датами.
+//*********************************************************************************************************************************************************
+	vTableName = SubField(vTABLE, '.', 2);
+	IF FieldNumber(vTableName & '.ПериодВремя', vTABLE) > 0 THEN
+		[TEMP]: LOAD *,  If([$(vFIELD)] = Previous([$(vFIELD)]) and Date([$(vTableName).Период]) = Date(Previous([$(vTableName).Период])), 1, 0) as [DELETE] Resident [$(vTABLE)] 
+			Order By [$(vFIELD)], [$(vTableName).ПериодВремя] desc; 
+		DROP Table [$(vTABLE)]; vNoOfRowsBefore = NoOfRows('TEMP'); Inner Join (TEMP) LOAD 0 as [DELETE] AutoGenerate 1; DROP Fields [DELETE], [$(vTableName).ПериодВремя]; RENAME Table [TEMP] to [$(vTABLE)]; 
+		vNoOfRows = NoOfRows('$(vTABLE)') - vNoOfRowsBefore; IF vNoOfRows <> 0 THEN; TRACE;TRACE	?	Количество строк в  $(vTABLE) изменилось на $(vNoOfRows); TRACE; ENDIF
+	ENDIF; 
+	NoConcatenate [TEMP]: LOAD *, [$(vTableName).Период] as [ДатаНач], If([$(vFIELD)] = Previous([$(vFIELD)]), Date(Previous([$(vTableName).Период])-1), Date(YearEnd(Today(), 1))) as [ДатаКон] 
+		Resident [$(vTABLE)] //Date(Today() + 100)
+	Where not Match('00000000000000000000000000000000', [$(vFIELD)]) and Len([$(vFIELD)]) > 0 Order By [$(vFIELD)], [$(vTableName).Период] desc; DROP Table [$(vTABLE)]; 
+		RENAME Table [TEMP] to [$(vTABLE)]; DROP Fields [$(vTableName).Период] From [$(vTABLE)];
+	IF vCALENDAR THEN
+		[Календарь]: LOAD Date('$(vDateStart)' + IterNo() - 1) as [Дата] AutoGenerate 1 While Date('$(vDateStart)' + IterNo() - 1) <= Date(YearEnd(Today(), 1));
+		Inner Join(Календарь) IntervalMatch (Дата) LOAD Distinct [ДатаНач], [ДатаКон] Resident [$(vTABLE)]; Inner Join(Календарь) LOAD * Resident [$(vTABLE)]; 
+		DROP Fields [ДатаНач], [ДатаКон] From [Календарь]; DROP Table [$(vTABLE)]; RENAME Table [Календарь] to [$(vTABLE)]; 
+	ENDIF; CALL DropVars('vTABLE, vFIELD, vCALENDAR');	
+ENDSUB
+SUB IntervalMatch_2(vTABLE, vFIELDS, vCALENDAR,	vTableName,vNoOfRowsBefore,vNoOfRows,vFields_1,vFields_2,vFields_3,vField,vFIELD); TRACE ------------------------------ IntervalMatch vDateStart '$(vDateStart)'; $(vCheckTable); 
+	vTableName = SubField(vTABLE, '.', 2); vFIELD = SubField(vFIELDS, '|', 1);
+	FOR i = 1 to SubStringCount(vFIELDS, '|') + 1; vField = SubField(vFIELDS, '|', i); vFields_1 = vFields_1 & ', [$(vField)]'; vFields_2 = vFields_2 & 'and [$(vField)] = Previous([$(vField)])'; vFields_3 = vFields_3 & 'and not Match(''00000000000000000000000000000000'', [$(vField)]) and Len([$(vField)]) > 0'; NEXT;
+	vFields_1 = Right(vFields_1, Len(vFields_1) - 2); vFields_2 = Right(vFields_2, Len(vFields_2) - 4); vFields_3 = Right(vFields_3, Len(vFields_3) - 4);
+	IF FieldNumber(vTableName & '.ПериодВремя', vTABLE) > 0 THEN
+		[TEMP]: LOAD *,  If([$(vFIELD)] = Previous([$(vFIELD)]) and Date([$(vTableName).Период]) = Date(Previous([$(vTableName).Период])), 1, 0) as [DELETE] Resident [$(vTABLE)] Order By [$(vFIELD)], [$(vTableName).ПериодВремя] desc; 
+		DROP Table [$(vTABLE)]; vNoOfRowsBefore = NoOfRows('TEMP'); Inner Join (TEMP) LOAD 0 as [DELETE] AutoGenerate 1; DROP Fields [DELETE], [$(vTableName).ПериодВремя]; RENAME Table [TEMP] to [$(vTABLE)]; 
+		vNoOfRows = NoOfRows('$(vTABLE)') - vNoOfRowsBefore; IF vNoOfRows <> 0 THEN; TRACE;TRACE	?	Количество строк в  $(vTABLE) изменилось на $(vNoOfRows); TRACE; ENDIF
+	ENDIF; 
+	NoConcatenate [TEMP]: LOAD *, [$(vTableName).Период] as [ДатаНач], If($(vFields_2), Date(Previous([$(vTableName).Период])-1), Date(YearEnd(Today(), 1))) as [ДатаКон] Resident [$(vTABLE)] //Date(Today() + 100)
+	Where $(vFields_3) Order By $(vFields_1), [$(vTableName).Период] desc; DROP Table [$(vTABLE)]; RENAME Table [TEMP] to [$(vTABLE)]; DROP Fields [$(vTableName).Период] From [$(vTABLE)];
+	IF vCALENDAR THEN
+		[Календарь]: LOAD Date('$(vDateStart)' + IterNo() - 1) as [Дата] AutoGenerate 1 While Date('$(vDateStart)' + IterNo() - 1) <= Date(YearEnd(Today(), 1));
+		Inner Join(Календарь) IntervalMatch (Дата) LOAD Distinct [ДатаНач], [ДатаКон] Resident [$(vTABLE)]; Inner Join(Календарь) LOAD * Resident [$(vTABLE)]; 
+		DROP Fields [ДатаНач], [ДатаКон] From [Календарь]; DROP Table [$(vTABLE)]; RENAME Table [Календарь] to [$(vTABLE)]; 
+	ENDIF; CALL DropVars('vTABLE, vFIELD, vCALENDAR');	
+ENDSUB
+SUB DropVars(vVars)	
+//*********************************************************************************************************************************************************
+//	31.	Удаление переменных.
+//*********************************************************************************************************************************************************
+	vVars = Chr(39) & Replace(vVars, ',', Chr(39) & ',' & Chr(39)) & Chr(39); 
+	vKeepVars = Chr(39) & Replace($((KeepVars)), ',', Chr(39) & ',' & Chr(39)) & Chr(39);
+	FOR Each vDropVar in $(vVars); 
+		IF not Match(vDropVar, $(vKeepVars)) THEN
+			LET [$(vDropVar)] = Null(); 
+		ENDIF 
+	NEXT; vVars=; vKeepVars=; vDropVar =;  
+ENDSUB
+SUB UnionFields(vTABLE, 	vString,vCounter,vCurField,vNewField,vOldField)
+//*********************************************************************************************************************************************************
+//	33.	Объединение полей по условию - если в одном поле значение отсутствует, брать из другого.
+//*********************************************************************************************************************************************************
+	vString = ''; 
+	FOR vCounter = 1 TO NoOfFields('$(vTABLE)')  
+	    vCurField 	= FieldName($(vCounter), '$(vTABLE)');
+	    vNewField 	= Upper(Left(vCurField, 1)) & Right(vCurField, Len(vCurField)-1);
+	    vOldField 	= Lower(Left(vCurField, 1)) & Right(vCurField, Len(vCurField)-1);
+		vString 	= vString & If(vNewField <> vCurField and not IsNull(FieldValueCount('$(vNewField)')), ', If(not IsNull([$(vCurField)]), [$(vCurField)], [$(vNewField)]) as [$(vNewField)]', If(vCurField <> vOldField and not IsNull(FieldValueCount('$(vOldField)')), '', ', [$(vCurField)]'));
+	NEXT; vString	= Right(vString, Len(vString) - 2); 
+	[$(vTABLE)_2]: NoConcatenate LOAD $(vString) Resident [$(vTABLE)]; DROP Table [$(vTABLE)]; RENAME Table [$(vTABLE)_2] to [$(vTABLE)]; CALL DropVars('vTABLE'); 
+ENDSUB
+SUB MapRename(vMAP,	vNo)
+//*********************************************************************************************************************************************************
+//	34.	Переимновывание полей в соответствии со списком из файла настроек.
+//*********************************************************************************************************************************************************
+	vMAP = If(Len(Trim(vMAP)) = 0, '*', vMAP); vNo = If(Len(Trim(vNo)) = 0, 1, vNo + 1);
+	[MapTable.$(vNo)]: Mapping LOAD Existing, Desired FROM [\\172.16.245.8\QlikView\Config\Settings.xlsx] (ooxml, embedded labels, table is Mapping) 
+		Where Map = '$(vMAP)' and Len(Trim(Desired)) > 0; RENAME Fields using [MapTable.$(vNo)]; CALL DropVars('vMAP');
+ENDSUB
+SUB LoadVariables(vPATH,vSHEET, vCounter)
+//*********************************************************************************************************************************************************
+//	35.	Загрузка переменных.
+//*********************************************************************************************************************************************************
+	[Variables]:LOAD Variables.Name, Variables.Definition, Action FROM [$(vPATH)] (ooxml, embedded labels, table is $(vSHEET)) Where Len(Trim(Variables.Name)) > 0;
+	FOR vCounter = 0 to NoOfRows('Variables') - 1; LET [Variable] = Peek('Variables.Name' , $(vCounter), 'Variables'); LET [$(Variable)] = Peek('Variables.Definition', $(vCounter), 'Variables'); 
+	IF Peek('Action', $(vCounter), 'Variables') = 'Calculate' THEN; [$(Variable)] = $($(Variable)); ENDIF; IF Peek('Action', $(vCounter), 'Variables') = 'Run' THEN; Run = $(Variable); $(Run); ENDIF; NEXT; DROP Table [Variables]; 
+ENDSUB
+SUB GetPaths(vDIR,vEXT,vDEPTH,vTABLE,vLEVEL, 	vSubDir,vPath,vExt,vExts);
+//*********************************************************************************************************************************************************
+//	36.	Получение списка файлов.
+//*********************************************************************************************************************************************************
+ 	vExts 	= Chr(39)& If(Len(Trim(vEXT)) = 0, '*', Replace(vEXT, ',', Chr(39)& ',' &Chr(39))) &Chr(39);
+ 	vLEVEL 	= If(Len(Trim(vLEVEL)) = 0, 1, vLEVEL);
+ 	vDEPTH 	= If(Len(Trim(vDEPTH)) = 0, 1000000, vDEPTH);
+ 	vTABLE 	= If(Len(Trim(vTABLE)) = 0, 'FilePaths', vTABLE);
+ 	IF vLEVEL <= vDEPTH THEN
+		FOR Each vPath in FileList('$(vDIR)\*.*'); vQvdFiles = vQvdFiles & If(WildMatch(SubField(vPath, '.', -1), $(vExts)), Chr(13) & vPath, ''); NEXT; 
+		FOR Each vSubDir in DirList(vDIR & '\*' ); CALL GetPaths(vSubDir,vEXT,vDEPTH,vTABLE,vLEVEL+1); NEXT; 
+	ENDIF
+	IF vLEVEL = 1 THEN; vQvdFiles = Trim(vQvdFiles); [$(vTABLE)]: LOAD SubField('$(vQvdFiles)', Chr(13)) as Path AutoGenerate 1; vQvdFiles=; ENDIF;
+ENDSUB;
+SUB MetaLoad(vPickValue,vIterNo,vString,vHeaders,vSelect1,vMetaPath); 	TRACE >>>>>>>>>>>>>>>>>>>>>> MetaLoad;	
+//*********************************************************************************************************************************************************
+//	37.	Загрузка метаданных из файла excel.
+//*********************************************************************************************************************************************************
+
+	IF $((Action)) like '*sql' THEN 
+		vMetaPath 	= '['& $((QvdPath)) &'\Meta\$1.csv] (txt, utf8, embedded labels, delimiter is '','', msq)'; 				//LOAD msgbox('$(vMetaPath)') autogenerate 1;
+		
+		M77:  Mapping Load Distinct Left([ИмяТаблицыQV], Len([ИмяТаблицыQV]) -2), [ИмяТаблицыQV] FROM $(vMetaPath(Final)) 		Where [ИмяТаблицыQV] like '*X1';
+		
+		[Metas]: NoConcatenate LOAD *, RecNo() 																					as [НомерСтроки],
+			ApplyMap('M77', [ИмяХранения])																						as [ИмяХранения_],
+			ApplyMap('M77', [ИмяХраненияТипа])																					as [ИмяХраненияТипа_],
+			If([ИмяХранения] like '*rref', If([Объект] = 'Перечисление', 2, 3), If([ТипРеквизита] = 'Дата', 1, 0))				as [Select0],
+			-1 																													as [Select1],
+			If(ИмяПоляQV like '*Ссылка' and Len(ИмяХраненияТипа) = 0, 2, 1)														as [КолТипов] 
+		FROM $(vMetaPath(Final))																								Where not [ИмяТаблицыQV] like '*X1';
+
+		Drop Fields [ИмяХранения], [ИмяХраненияТипа];
+		Rename Fields [ИмяХранения_] 		to [ИмяХранения], 
+					  [ИмяХраненияТипа_] 	to [ИмяХраненияТипа];
+
+/* 		[Metas]: NoConcatenate LOAD *, RecNo() 																					as [НомерСтроки],
+			If([ИмяХранения] like '*rref', If([Объект] = 'Перечисление', 2, 3), If([ТипРеквизита] = 'Дата', 1, 0))				as [Select0],
+			-1 																													as [Select1],
+			If(ИмяПоляQV like '*Ссылка' and Len(ИмяХраненияТипа) = 0, 2, 1)														as [КолТипов] 
+		FROM $(vMetaPath(Final)); */
+		
+/* 		IF $((Action)) like 'Keep *' THEN
+			Rename Table [Metas] to T1; CALL MetaBuild; Drop Table [Enums]; 
+			Left  Join 	(T1) 	LOAD Distinct [ИмяТаблицыQV], [ИмяХранения] as F1												Resident T1 	 Where [ИмяТаблицыQV] = [Представление];
+			Left  Join 	(Metas) LOAD Distinct [ИмяТаблицыQV], [ИмяХранения] as F2												Resident [Metas] Where [ИмяТаблицыQV] = [Представление];
+			Left  Join 	(Metas) LOAD Distinct F2, [ИмяХранения], F2 &'.'& [ИмяХранения] as K1 									Resident [Metas] Where Len(ИмяХранения) > 0;
+			
+			Inner Join 	(Metas) LOAD Distinct 					 F1 &'.'& [ИмяХранения] as K1									Resident T1;
+			Concatenate	(Metas) LOAD Distinct *																					Resident T1 Where not Exists (K1, F1 &'.'& [ИмяХранения]);
+			Drop Fields F1, F2, K1, [НомерСтроки] from [Metas]; Drop Table T1;
+			T1: NoConcatenate LOAD *, RecNo() as [НомерСтроки] Resident [Metas]; Drop Table [Metas]; Rename Table T1 to [Metas]; // Меняем [НомерСтроки] - причуды с input field 
+		ENDIF */
+		
+		IF $((Action)) like 'Keep *' THEN
+			Rename Table [Metas] to T1; CALL MetaBuild; Drop Table [Enums]; 
+			Left  Join 	(T1) 	LOAD Distinct [ИмяТаблицыQV], [ИмяХранения], [ИмяТаблицыQV] & [Представление] as F1				Resident T1;
+				Drop Field [Select1] From T1;
+				
+			[Metas]: 																											Left Join (T1)
+			LOAD Distinct [Select1]																								as F2, 
+				 [ИмяТаблицыQV] & [Представление] & If([ИмяПоляQV] like '*.Ссылка' and not 
+												   [Представление] like '*.Ссылка', '.Ссылка', 
+													If([ИмяПоляQV] like '*.L', 		'.Булево', 
+													If([ИмяПоляQV] like '*.N', 		'.Число', 
+													If([ИмяПоляQV] like '*.S', 		'.Строка', 
+													If([ИмяПоляQV] like '*.T', 		'.Дата', 
+													If([ИмяПоляQV] like '*.Тип', 	'.ТипОбъекта',  
+													If([ИмяПоляQV] like '*.TYPE', 	'.ТипЗначения', '')))))))					as F1
+			Resident [Metas]																									Where [Select1] >= 0;
+				Drop Table [Metas]; Drop Field [НомерСтроки] From T1;
+
+			[Metas]: NoConcatenate LOAD *, If(Len(F2) = 0, -1, F2) as [Select1], RecNo() as [НомерСтроки]						Resident T1;
+				Drop Table T1; Drop Fields F1, F2;
+		ENDIF
+
+		
+		QUALIFY *; 
+			[Enums]: LOAD * FROM $(vMetaPath(Enums)); Drop Field [Enums.SQL name] From [Enums];
+		UNQUALIFY *; 
+		
+		CALL Exit; 
+	ENDIF
+	
+	
+
+	vPickValue 	= 'If(Len(Trim($1)) = 0 and Len(Trim(Объект)) = 0, Peek($1), $1)';
+	vMetaPath 	= $((MetaPath));
+	
+	[TEMP]:
+	LOAD *, // Здесь подправили таблицы бух итогов
+		If([ИмяТаблицыQV_] like 'РегистрБухгалтерии.*.Субконто' and [Назначение] like 'ИтогиПоСчетамССубконто*', 
+			Replace([ИмяТаблицыQV_], 	'Субконто', [Назначение]), [ИмяТаблицыQV_])												as [ИмяТаблицыQV],	
+		If([ИмяТаблицыQV_] like 'РегистрБухгалтерии.*.Субконто' and [Назначение] like 'ИтогиПоСчетамССубконто*', 
+			Replace([ИмяПоляQV_], 	 	'Субконто', [Назначение]), [ИмяПоляQV_])												as [ИмяПоляQV],	
+		If([ИмяТаблицыQV_] like 'РегистрБухгалтерии.*.Субконто' and [Назначение] like 'ИтогиПоСчетамССубконто*', 
+			Replace([Представление_], 	'Субконто', [Назначение]), [Представление_])											as [Представление];	
+	LOAD 
+		RecNo() 																												as [НомерСтроки], 
+		$(vPickValue(Объект)) 																									as [Объект], 
+		$(vPickValue(Назначение)) 																								as [Назначение], 
+		ИмяТаблицыQV																											as [ИмяТаблицыQV_], 
+		Alt(Select0 * 1, -1) 																									as [Select0], 
+//		'-1' 																													as [#Select1], 
+		ИмяПоля																													as [ИмяПоля], 
+		Replace(If(Len(Trim(Представление)) = 0, ИмяПоляQV 	  &'.'& ИмяХранения, ИмяПоляQV	  ), '_RecordKind', 'ВидДвижения')	as [ИмяПоляQV_], 
+		Продажи																													as [Продажи], 
+		Синоним																													as [Синоним], 
+		Replace(If(Len(Trim(Представление)) = 0, ИмяТаблицыQV &'.'& ИмяХранения, Представление), '_RecordKind', 'ВидДвижения')	as [Представление_], 
+		ИмяХранения																												as [ИмяХранения], 
+		ТипРеквизита																											as [ТипРеквизита], 
+		ИмяХраненияТипа																											as [ИмяХраненияТипа], 
+		Префикс																													as [Префикс], 
+		КоличествоСтрок																											as [КоличествоСтрок], 
+		Проверка																												as [Проверка], 
+		КолТипов																												as [КолТипов], 
+		Комментарий																												as [Комментарий]
+	FROM [$(vMetaPath)] (ooxml, embedded labels, table is Metas);
+		Drop Fields [ИмяТаблицыQV_], [ИмяПоляQV_], [Представление_];
+	
+
+	
+	
+// Подставляем представления в там части из основных таблиц
+	IF DocumentName() like '*BUH*' THEN
+	
+		//[Metas]: NoConcatenate LOAD * Resident [TEMP] Where Len(Trim(ИмяТаблицыQV)) > 0 Order By НомерСтроки; DROP Table [TEMP];
+		Left Join ([TEMP])
+		LOAD Distinct
+			 ИмяХранения																											as ИмяХранения, 
+			 ИмяТаблицыQV & '.Итоги' 																								as ИмяТаблицыQV, 
+			 SubField(ИмяПоляQV, '.', 1) & '.Итоги' &  Mid(ИмяПоляQV, Index(ИмяПоляQV, '.', 1))  									as ИмяПоляQV_, 
+			 SubField(Представление, '.', 1)& '.'& SubField(Представление, '.', 2) & '.Итоги.' &  SubField(Представление, '.', 3) 	as Представление_, 
+			 Синоним	 																											as Синоним_,
+			 ТипРеквизита 																											as ТипРеквизита_,	
+			 ИмяХраненияТипа 																										as ИмяХраненияТипа_,
+			 ИмяПоля 																												as ИмяПоля_
+		Resident [TEMP];
+
+		[Metas]: NoConcatenate 
+		LOAD Distinct
+			 НомерСтроки,
+			 Объект, 
+			 Назначение, 
+			 ИмяТаблицыQV, 
+			 Alt(Select0 *1, -1) 																									as Select0, 
+			 '-1' 																													as Select1, 
+	//	     Alt(#Select1 *1, -1) 																									as #Select1, 
+	//	     #Select1,
+			 If(Представление_ <> '..Итоги.' and Len(ИмяПоля_) > 0, ИмяПоля_, ИмяПоля) 												as ИмяПоля, 
+			 If(Представление_ <> '..Итоги.' and Len(ИмяПоляQV_) > 0, ИмяПоляQV_, ИмяПоляQV) 										as ИмяПоляQV, 
+			 Продажи, 
+			 If(Представление_ <> '..Итоги.' and Len(Синоним_) > 0, Синоним_, Синоним) 												as Синоним, 
+			 If(Представление_ <> '..Итоги.' and Len(Представление_) > 0, Представление_, Представление) 							as Представление, 
+			 ИмяХранения, 
+			 If(Представление_ <> '..Итоги.' and Len(ТипРеквизита_) > 0, ТипРеквизита_, ТипРеквизита) 								as ТипРеквизита, 
+			 If(Представление_ <> '..Итоги.' and Len(ИмяХраненияТипа_) > 0, ИмяХраненияТипа_, ИмяХраненияТипа) 						as ИмяХраненияТипа, 
+			 Префикс, 
+			 КоличествоСтрок, 
+			 Проверка, 
+			 КолТипов, 
+			 Комментарий
+	//	     #Select1 as Select1
+		Resident [TEMP] Where Len(Trim(ИмяТаблицыQV)) > 0 Order By НомерСтроки; DROP Table [TEMP]; 		
+		
+	ELSE
+	
+		T2: LOAD Distinct
+			 ИмяХранения																											as ИмяХранения, 
+			 ИмяТаблицыQV  																											as F1, 
+			 ИмяПоляQV,
+			 Представление,
+			 Комментарий,
+			 Синоним	 																											as Синоним,
+			 ТипРеквизита 																											as ТипРеквизита,	
+			 ИмяХраненияТипа 																										as ИмяХраненияТипа,
+			 ИмяПоля 	
+
+		Resident [TEMP] Where SubstringCount(ИмяТаблицыQV, '.') = 1 and ИмяТаблицыQV like 'регистр*';///and WildMatch(ИмяТаблицыQV, 'РегистрНакопления.*', 'РегистрБухгалтерии.*');
+		
+		Inner Join (T2)
+		LOAD Distinct 
+			ИмяТаблицыQV,
+			Mid(ИмяТаблицыQV, 1, Index(ИмяТаблицыQV, '.', 2) -1) as F1
+		Resident [TEMP] Where SubstringCount(ИмяТаблицыQV, '.') = 2;// and [Назначение] like '*итоги*';
+
+		Left Join ([TEMP])
+		LOAD Distinct// F1, Mid(F1, Index(F1, '.', 1) +1) as F2, Mid(ИмяТаблицыQV, Index(ИмяТаблицыQV, '.', 1) +1) as F3,
+			 ИмяХранения																											as ИмяХранения, 
+			 ИмяТаблицыQV																											as ИмяТаблицыQV, 
+			 Replace(ИмяПоляQV, Mid(F1, Index(F1, '.', 1) +1), Mid(ИмяТаблицыQV, Index(ИмяТаблицыQV, '.', 1) +1))  					as ИмяПоляQV_, 
+			 Replace(Представление, F1, ИмяТаблицыQV)  																				as Представление_, 
+			 Синоним	 																											as Синоним_,
+			 ТипРеквизита 																											as ТипРеквизита_,	
+			 ИмяХраненияТипа 																										as ИмяХраненияТипа_,
+			 ИмяПоля 																												as ИмяПоля_,
+			 Комментарий																											as Комментарий_
+		Resident T2;
+
+			Drop Table T2;
+
+		[Metas]: NoConcatenate 
+		LOAD Distinct
+			 НомерСтроки,
+			 Объект, 
+			 Назначение, 
+			 ИмяТаблицыQV, 
+			 Alt(Select0 *1, -1) 																									as Select0, 
+			 '-1' 																													as Select1,  
+			 If(not Представление_ like '..*.' and Len(ИмяПоля_) 			> 0, ИмяПоля_, ИмяПоля) 								as ИмяПоля, 
+			 If(not Представление_ like '..*.' and Len(ИмяПоляQV_) 		> 0, ИмяПоляQV_, ИмяПоляQV) 								as ИмяПоляQV, 
+			 Продажи, 
+			 If(not Представление_ like '..*.' and Len(Синоним_) 			> 0, Синоним_, Синоним) 								as Синоним, 
+			 If(not Представление_ like '..*.' and Len(Представление_) 	> 0, Представление_, Представление) 						as Представление, 
+			 ИмяХранения, 	
+			 If(not Представление_ like '..*.' and Len(ТипРеквизита_) 		> 0, ТипРеквизита_, ТипРеквизита) 						as ТипРеквизита, 
+			 Replace(If(not Представление_ like '..*.' and Len(ИмяХраненияТипа_) 	> 0, ИмяХраненияТипа_, ИмяХраненияТипа), '_ErrorProcessingSettings', '')					as ИмяХраненияТипа, 
+			 Префикс, 
+			 КоличествоСтрок, 
+			 Проверка, 
+			 КолТипов, 
+	//	     Комментарий
+			 If(not Представление_ like '..*.' and Len(Комментарий_) 		> 0, Комментарий_, Комментарий) 						as Комментарий
+
+		Resident [TEMP] Where Len(Trim(ИмяТаблицыQV)) > 0 Order By НомерСтроки; DROP Table [TEMP];	
+	
+	ENDIF
+// =========================================	
+	
+//	Здесь добавляем настройки (Select1) из тек таблицы
+	IF $((Action)) = 'Keep load' THEN	
+		vString=; vHeaders = SubField(vMetas, Chr(13), 1); 
+		FOR vIterNo = 1 to SubStringCount(vHeaders, Chr(9)) +1; vString = vString & 'SubField([Field], Chr(9), ' & vIterNo & ') as ' & SubField(vHeaders, Chr(9), vIterNo) & ',' & Chr(13); NEXT
+		vString = Trim(Left(vString, Len(vString) -2)); TRACE vString = '$(vString)'; 
+		DROP Fields Select1 From [Metas];
+		Left Join ([Metas]) LOAD Distinct ИмяТаблицыQV, ИмяХранения, Select1 as F1 Where Select1 >=0; LOAD $(vString) ; LOAD SubField('$(vMetas)', Chr(13)) as Field AutoGenerate 1; //ИмяПоляQV, Представление, 
+		[metas]: LOAD *, Alt(F1 *1, -1) as [Select1] Resident [Metas]; CALL RenameTable; DROP Fields F1 From [Metas];
+	ENDIF; 
+//	vSelect1 = If(vRebuildAll, 'Alt(#Select1 *1, -1)', 'Alt(Select1_old *1, -1)'); [metas]: LOAD *, $(vSelect1) as [Select1] Resident [Metas]; CALL RenameTable; IF not vRebuildAll THEN; DROP Field Select1_old; ENDIF
+	
+	QUALIFY *; [Enums]: LOAD Перечисление, Значение, Синоним, Порядок FROM [$(vMetaPath)] (ooxml, embedded labels, table is Enums); 
+	//vTemp = SaveMetas(); vTemp = SaveEnums(); vTemp =;
+	UNQUALIFY *; CALL Exit; 
+																		
+ENDSUB
+SUB MetaBuild(vIterNo,vString,vHeaders); TRACE >>>>>>>>>>>>>>>>>>>>>> MetaBuild;
+	//*********************************************************************************************************************************************************
+	//	38.	Построение таблицы метаданных из переменной.
+	//*********************************************************************************************************************************************************
+	IF Len(vMetas) < 100 THEN 
+		vMetas = '[НомерСтроки]	[Объект]	[Назначение]	[ИмяТаблицыQV]	[Select0]	[ИмяПоля]	[ИмяПоляQV]	[Продажи]	[Синоним]	[Представление]	[ИмяХранения]	[ТипРеквизита]	[ИмяХраненияТипа]	[Префикс]	[КоличествоСтрок]	[Проверка]	[КолТипов]	[Комментарий]	[#Select1]	[Select1]';
+	ENDIF
+	
+	vString=; vHeaders = SubField(vMetas, Chr(13), 1); 
+	FOR vIterNo = 1 to SubStringCount(vHeaders, Chr(9)) +1; vString = vString & 'SubField([Field], Chr(9), ' & vIterNo & ') as ' & SubField(vHeaders, Chr(9), vIterNo) & ',' & Chr(13); NEXT
+	vString = Trim(Left(vString, Len(vString) -2)); TRACE vString = '$(vString)'; Temp: LOAD SubField('$(vMetas)', Chr(13)) as Field AutoGenerate 1; 
+//	IF $((Action)) = 'Edit' THEN; INPUTFIELD Select1; ENDIF  //INPUTFIELD Select1; //
+	
+	[Metas]: LOAD '' as Объект, '' as Назначение, '' as ИмяТаблицыQV, '' as ИмяПоляQV, '' as Синоним, '' as Представление, 
+		'' as ТипРеквизита, '' as ИмяХраненияТипа, '' as ИмяХранения, '' as КолТипов, '' as КоличествоСтрок, '' as Select0, '' as Select1 AutoGenerate 0;
+	Concatenate LOAD $(vString) Resident Temp Where not Field like '*[Объект]*' and len(Trim(Replace(Field, '-1', ''))) > 0; Drop Table [Temp]; 
+		IF FieldNumber('#Select1', 'Metas') > 0 THEN; DROP Field [#Select1] From [Metas]; ENDIF
+
+/* 	IF $((Database)) = 'ICP' THEN; 
+		T1: NoConcatenate LOAD *, 	If([ИмяПоляQV] like '*.ДополнительныеРеквизиты.Значение.Ссылка', 'Справочник.ЗначенияСвойствОбъектов', [ТипРеквизита]) as F1,
+									If([ИмяПоляQV] like '*.ДополнительныеРеквизиты.Значение.Ссылка', '_Reference86', [ИмяХраненияТипа]) as F2,
+									If([ИмяПоляQV] like '*.ДополнительныеРеквизиты.Значение.Ссылка', 1, [КолТипов]) as F3
+		Resident [Metas];
+									
+		Drop Table [Metas]; Rename Table T1 to [Metas]; Drop Field [ТипРеквизита], [ИмяХраненияТипа], [КолТипов]; Rename Field F1 to [ТипРеквизита], F2 to [ИмяХраненияТипа], F3 to [КолТипов];
+	ENDIF */
+	
+//		Store [Metas] into [$(vQvdPath)\Metas.qvd] (qvd);
+
+	vString=; vHeaders = 'Enums.Перечисление' &Chr(9)& 'Enums.Значение' &Chr(9)& 'Enums.Синоним' &Chr(9)& 'Enums.Порядок'; 
+	FOR vIterNo = 1 to 4; vString = vString & 'SubField([Field], Chr(9), ' & vIterNo & ') as ' & SubField(vHeaders, Chr(9), vIterNo) & ',' & Chr(13); NEXT
+	vString = Trim(Left(vString, Len(vString) -2)); TRACE vString = '$(vString)'; Temp: LOAD SubField('$(vEnums)', Chr(13)) as Field AutoGenerate 1; 
+	[Enums]: LOAD $(vString) Resident Temp; Drop Table [Temp]; 
+//	Store [Enums] into [$(vQvdPath)\Enums.qvd] (qvd);
+	
+ENDSUB
+SUB Execute(VZ); $(vTrace(Execute, >)); 
+//*********************************************************************************************************************************************************
+//	39.	Выполнение процедур в модуле.
+//*********************************************************************************************************************************************************
+	
+	[Settings]: LOAD 	SubField('Default,All queries,All routines,Queries,Routines,None', ',') 		as $Action,
+						SubField('Default,Total', ',') 													as $Select,
+						SubField('Default,Full,Night,Day', ',') 										as $Period,
+						SubField('$(vAllRoutines)', ';') 												as $Routine			AutoGenerate 1;
+
+	
+	
+	IF $((Action)) like '*load*' THEN; CALL MetaLoad(''); 
+		ELSE; CALL MetaBuild(''); ENDIF; 
+	CALL CheckGlobalSplit('');
+	
+	IF WildMatch($((Action)), 'Default', '*queries') THEN; $(vConnect);
+		IF WildMatch($((Action)), 'Queries', 'Get queries') THEN; 
+			vSqlTables = ''''& Replace( $((Queries)) , ';', ''',''') &''''; 
+		ELSE;
+			T1: LOAD ''''& Concat(Distinct ИмяТаблицыQV, ''',''') &'''' as F1 Resident [Metas] 
+				Where [ИмяТаблицыQV] = [Представление] and [$(vSelect)] >= 0; // and WildMatch([Назначение], 'Таб*Часть', 'Основная', 'Итоги*', 'Знач*Субконто') 
+			vSqlTables = Peek('F1', -1, T1); Drop Table T1;
+		ENDIF;
+		FOR Each vSqlTable in $(vSqlTables); IF Len(Trim(vSqlTable)) > 0 THEN; CALL Select('$(vSqlTable)', '$(vSelect)'); ENDIF; NEXT; 
+		IF $((Action)) = 'Get queries' THEN; CALL Exit(''); ENDIF
+	ENDIF;
+
+	IF $((Action)) = 'Get routines' THEN; CALL GenerateLoadScript(''); CALL Exit(''); ENDIF
+	
+	IF WildMatch($((Action)), 'Default', '*routines') 	THEN; 
+		vRoutines = ''''& Replace( If($((Action)) = 'Routines', $((Routines)), $((AllRoutines)) ), ';', ''',''') &'''';
+		FOR Each vRoutine in $(vRoutines); IF Len(Trim(vRoutine)) > 0 THEN; CALL $(vRoutine)(''); CALL DROP; ENDIF; NEXT;	
+	ENDIF;	
+	CALL DropVars('vSqlTable,vSqlTables,vRoutine,vRoutine');
+	CALL Exit('');
+	
+ENDSUB
+SUB GetFileSplit(vFILE); TRACE >>>>>>>>>>>>>>>>>>>>>> GetSplitDate;
+//*********************************************************************************************************************************************************
+//	40.	Получение даты сплита из хэдера QVD.
+//*********************************************************************************************************************************************************
+	IF IsNull(QvdCreateTime('$(vFILE)')) THEN; vFileSplitDate = vPlanSplitDate; EXIT SUB; ENDIF
+	QvdTableHeader: LOAD Comment FROM [$(vFILE)] (XmlSimple, Table is [QvdTableHeader]);
+	vFileSplitDate 	= Alt(Date(SubField(SubField(Peek('Comment'), 'SplitDate: ', 2), Chr(13), 1)), vPlanSplitDate); DROP Table QvdTableHeader; TRACE $(vFILE) = $(vFileSplitDate);
+	
+ENDSUB
+SUB CheckFileSplit(vFILE_1, vFILE_2, 	vDate_1, vDate_2); TRACE >>>>>>>>>>>>>>>>>>>>>> CheckSplitDate;
+//*********************************************************************************************************************************************************
+//	41.	Проверка на одинаковость даты сплита в 2 файлах.
+//*********************************************************************************************************************************************************
+	CALL GetFileSplit('$(vFILE_1)'); 	vDate_1 = vFileSplitDate; 	TRACE $(vFILE_1) = $(vFileSplitDate); 
+	CALL GetFileSplit('$(vFILE_2)'); 	vDate_2 = vFileSplitDate; 	TRACE $(vFILE_2) = $(vFileSplitDate); 
+	vSplit.FileCheck = If(Date(vDate_1) = Date(vDate_2), 1, 0);		TRACE vSplit.FileCheck = $(vSplit.FileCheck); 
+ENDSUB
+SUB CheckGlobalSplit(vFile); 										TRACE >>>>>>>>>>>>>>>>>>>>>> CheckGlobalSplit; 
+//*********************************************************************************************************************************************************
+//	42.	Проверка всех файлов на актуальность дате сплита.
+//*********************************************************************************************************************************************************
+	IF not vTotalSplit THEN; vSelectSplit = 1; vTotalSplit = 1; vFactSplitDate = vPlanSplitDate; //LOAD MsgBox('$(vSelectSplit)') AutoGenerate 1; 
+		FOR Each vFile in FileList('$(vQvdPath)\* 1.qvd'); 
+			//LOAD MsgBox('$(vFile)') AutoGenerate 1; 
+	    	CALL GetFileSplit('$(vFile)');   
+			//LOAD MsgBox('$(vFileSplitDate)') AutoGenerate 1; 
+			vFactSplitDate = If(Date(vFileSplitDate) < Date(vFactSplitDate), vFileSplitDate, vFactSplitDate); 
+	    	IF vFileSplitDate <> vPlanSplitDate and Left(SubField('$(vFile)', '\', -1), 1) <> '#' THEN; vSelectSplit = 0; EXIT FOR; ENDIF //LOAD MsgBox('$(vFactSplitDate)') AutoGenerate 1; 
+		NEXT;  //LOAD MsgBox('$(vFile)') AutoGenerate 1; 
+		vTotalSplit = If(vFactSplitDate <> vPlanSplitDate, 0, 1);
+	ELSE
+		vSelectSplit = 1;
+	ENDIF
+	CALL SetParam('SplitDate', '$(vFactSplitDate)');
+ENDSUB
+SUB СрезПоследних(vTABLE,vFIELDS,vDATEFIELD); 	$(vCheckTable);	$(vGetDateField);	TRACE >>>>>>>>>>>>>>>>>>>>>> СрезПоследних; 
+//*********************************************************************************************************************************************************
+//	43.	Получение среза последних.
+//*********************************************************************************************************************************************************
+
+ENDSUB
+SUB РасчетИтогов_(vTABLE, vPart,vCounter,vField_0,vField_1,vField_2,vType,vString_1,vString_2,vString_3,vTable_1,vTable_2,vDate_1,vDate_2,vPath_1,vPath_2,vMove_2,vFieldName,vDateField, vComment, vComments,vВидДвижения,vБух); 	TRACE >>>>>>>>>>>>>>>>>>>>>> РасчетИтогов;
+//*********************************************************************************************************************************************************
+//	44.	Расчет итогов в регистрах остатков.
+//*********************************************************************************************************************************************************
+	vPart = Pick(WildMatch(vTABLE, '* 1', '* 2', '*'), 1, 2, 0); vTotals = If(Subfield(Subfield(vTABLE, ' ', 1), '.', -1) = 'Остатки', '.Остатки' ,'.Итоги');
+	vTable_1 = Replace(SubField(vTABLE, ' ', 1), vTotals, ''); vTable_2 = vTable_1 & '.НастройкиХраненияИтогов' & Replace(SubField(vTABLE, '.', 1), 'Регистр', 'Регистра'); 
+	CALL Select('$(vTable_2)', '0', '0'); vField_0 = Replace(vTable_2, SubField(vTable_2, '.', 1) & '.', ''); vDate_1 = Date(Peek('$(vField_0).Период')); DROP Table [$(vTable_2)];
+	vPath_1 = If($(vQvdExists('$(vQvdPath)\$(vTable_1).qvd')), '$(vQvdPath)\$(vTable_1).qvd', If($(vQvdExists('$(vQvdPath)\$(vTable_1) 1.qvd')), '$(vQvdPath)\$(vTable_1) 1.qvd', '')); 
+//	CALL GetFileSplit('$(vPath_1)');vFileSplitDate 
+   	vDate_1 = If(vPart = 2 and vLoadType = 'Day' and Date(MonthStart(vDaySplitDate)) > vDate_1, Date(MonthStart(vDaySplitDate)), If(vPart = 2 and vSplit.CommonDate > vDate_1, Date(AddMonths(vSplit.CommonDate, -1)), vDate_1));
+   	vDate_2 = If(vPart = 1, Date(AddMonths(vSplit.CommonDate, -1)), Date(MonthStart(Today(), 1))); 
+	IF vDate_1 < vDate_2 THEN; 	 LOAD MsgBox('$(vSplit.CommonDate)') AutoGenerate 1;
+ 		vPath_2 = Replace(vPath_1, ' 1', If(vDate_1 < vSplit.CommonDate,  ' *', ' 2')); 
+		IF Len(vPath_1) = 0 THEN; EXIT SUB; ENDIF
+		[QvdFieldHeader]: LOAD FieldName, Comment, trim(SubField(SubField(Comment, 'Тип:', 2), Chr(10), 1)) as Type FROM [$(vPath_1)] (XmlSimple, Table is [QvdTableHeader/Fields/QvdFieldHeader]);
+		// Здесь вставляем код для бух регистров '*.Остатки' и '*.Итоги'. 
+		// Загружаем временную таблицу, где сначала грузим по дебиту и потом по кредиту с добавлением ВидДвижения (1, -1). 
+		// Далее сохраняем в tmp таблицу, меняем путь для vPath_1 и перевыгружаем [QvdFieldHeader]
+		// Нужно заменить названия в полях, убрав Дт и Кт и сохранить комменты для полей
+		// LOAD MsgBox('$(vTABLE)') AutoGenerate 1;
+		IF vTABLE like 'РегистрБухгалтерии*' and WildMatch(SubField(vTABLE, ' ', 1), '*.Остатки', '*.Итоги') THEN
+			vБух = 1;
+			FOR i = 0 to NoOfRows('QvdFieldHeader') -1; 	 //LOAD MsgBox('Test') AutoGenerate 1; //qwe = Peek(vSelectNo, $(i)); 
+				vField 		= Peek('FieldName', $(i), 'QvdFieldHeader'); 
+				vComment 	= Peek('Comment', 	$(i), 'QvdFieldHeader'); 
+				vType 		= Peek('Type', 		$(i), 'QvdFieldHeader'); 
+				IF not WildMatch(vField, '*ВалютаКт*', '*СчетКт*', '*КоличествоКт*', '*СуммаКт*') THEN
+					vField_1 	= Replace(Replace(Replace(Replace(vField, 'ВалютаДт', 'Валюта'), 'СчетДт', 'Счет'), 'КоличествоДт', 'Количество'), 'СуммаДт', 'Сумма');
+					vString_1 	= vString_1 & If(i > 0, ',', '') & '[$(vField)] as [$(vField_1)]';
+					// Не все типы в регисте бух проставлены, корретируем для расчетов. Можно удалить, после исправления метаданных
+					IF Len(Trim(vType)) = 0 and WildMatch(vField_1, '*.Сумма', '*.ВалютнаяСумма', '*.Количество') THEN; //LOAD MsgBox('Test') AutoGenerate 1; //
+						vComment = Replace(vComment, 'Тип:', 'Тип: Число');
+					ENDIF
+					vComments 	= vComments & 'COMMENT Field '& vField_1 & ' With ''$(vComment)''; ';
+				ENDIF
+				IF not WildMatch(vField, '*ВалютаДт*', '*СчетДт*', '*КоличествоДт*', '*СуммаДт*') THEN
+					vField_2 	= Replace(Replace(Replace(Replace(vField, 'ВалютаКт', 'Валюта'), 'СчетКт', 'Счет'), 'КоличествоКт', 'Количество'), 'СуммаКт', 'Сумма');
+					vString_2 	= vString_2 & If(i > 0, ',', '') & '[$(vField)] as [$(vField_2)]';  
+				ENDIF
+				IF WildMatch(vField, '*.Период', '*.Дата', 'Дата') THEN; vDateField = vField; ENDIF
+			NEXT	
+			vВидДвижения = Replace(vDateField, '.Период', '.ВидДвижения');
+			[TEMP_1]: LOAD Date('$(vDate_1)' + IterNo() - 1) as [$(vDateField)] AutoGenerate 1 While Date('$(vDate_1)' + IterNo() - 1) < '$(vDate_2)'; 
+			[TEMP_2]: LOAD $(vString_1),  1 as [$(vВидДвижения)] From [$(vPath_2)] (qvd) Where Exists([$(vDateField)]); 
+			[TEMP_2]: LOAD $(vString_2), -1 as [$(vВидДвижения)] From [$(vPath_2)] (qvd) Where Exists([$(vDateField)]);
+			$(vComments); COMMENT Field [$(vВидДвижения)] With 'ВидДвижения';
+				vPath_2 = Replace(Replace(Replace(vPath_2, ' 1.', '.'), ' 2.', '.'), 'РегистрБухгалтерии', 'tmpРегистрБухгалтерии'); 
+					STORE [TEMP_2] into [$(vPath_2)] (qvd);
+			
+			DROP Table [TEMP_1], [TEMP_2], [QvdFieldHeader]; vString_1=; vString_2=; vField_1=; vField_2=; 
+			
+			[QvdFieldHeader]: LOAD FieldName, trim(SubField(SubField(Comment, 'Тип:', 2), Chr(10), 1)) as Type FROM [$(vPath_2)] (XmlSimple, Table is [QvdTableHeader/Fields/QvdFieldHeader]); 
+		ENDIF
+
+		FOR vCounter = 1 to NoOfFields('$(vTABLE)');   
+			vField_1  = FieldName($(vCounter), '$(vTABLE)'); vField_2  = Replace(vField_1, vTotals, ''); vType = Lookup('Type', 'FieldName', '$(vField_2)', 'QvdFieldHeader'); 
+			IF WildMatch(vField_1, '*.Период', '*.Дата', 'Дата') THEN; vDateField_1 = vField_1; vDateField_2 = vField_2; vType = 'Период'; vMove_2 = Replace(vField_2, SubField(vField_2, '.', -1), 'ВидДвижения'); ENDIF; 
+			vString_1 = vString_1 & If(vCounter > 1, ',', '') & If(vType =  'Число', 'Sum([$(vField_2)] * [TEMP])', If(vType = 'Период', 'Date(AddMonths(''$'&'(vDate_1)'', 1))', If(vType like 'ВидДвижения*', 0, '[$(vField_2)]'))) & ' as [$(vField_1)]'; 
+			vString_2 = vString_2 & If(vCounter > 1 and not WildMatch(vType, 'Период', 'Число', 'ВидДвижения*'), ',', '') & If(WildMatch(vType, 'Период', 'Число', 'ВидДвижения*'), '', '[$(vField_2)]'); vString_2 = If(Left(vString_2, 1) = ',', Mid(vString_2, 2), vString_2);
+			vString_3 = vString_3 & If(vCounter > 1, ',', '') & '[$(vField_1)] as [$(vField_2)]'; 
+		NEXT; DROP Table [QvdFieldHeader]; vString_1 = Replace(vString_1, '[TEMP]', '[$(vMove_2)]');  
+	// LOAD MsgBox('$(vString_1)') Autogenerate 1;
+	// LOAD MsgBox('$(vString_2)') Autogenerate 1;
+	// LOAD MsgBox('$(vString_3)') Autogenerate 1;
+		[TEMP_1]: LOAD Date('$(vDate_1)' + IterNo() - 1) as [$(vDateField_2)] AutoGenerate 1 While Date('$(vDate_1)' + IterNo() - 1) < '$(vDate_2)'; 											vVar = NoOfRows('TEMP_1'); 	$(vTrace(Количество строк в TEMP_1 $(vVar), =));
+//		vPath_2 = Replace(vPath_1, ' 1', If(vDate_1 < vSplit.CommonDate,  ' *', ' 2')); 																																   	$(vTrace(vPath_2 - $(vPath_2), =));	
+		[TEMP_2]: LOAD *, '' as NoConcatenate From [$(vPath_2)] (qvd) Where Exists([$(vDateField_2)]); DROP Table [TEMP_1]; 																	vVar = NoOfRows('TEMP_2'); 	$(vTrace(Количество строк в TEMP_2 $(vVar), =));	
+		vFrom = If(vPart < 2 or (vPart = 2 and vDate_1 >= vSplit.CommonDate), 'Resident [$(vTABLE)]', 'From [$(vQvdPath)\'& Replace(vTABLE, ' 2', ' 1') &'.qvd](qvd)'); 												   	$(vTrace(vFrom - $(vFrom), =));	
+		[TEMP_3]: NoConcatenate LOAD $(vString_3), 1 as [$(vMove_2)] $(vFrom); Inner Join LOAD '$(vDate_1)' as [$(vDateField_2)] AutoGenerate 1; 												vVar = NoOfRows('TEMP_3'); 	$(vTrace(Количество строк в TEMP_2 $(vVar), =));
+	STORE [TEMP_3] into [$(vPath_2)] (qvd); 	LOAD MsgBox('$(vDate_1)') Autogenerate 1; LOAD MsgBox('$(vSplit.CommonDate)') Autogenerate 1;
+		Concatenate([TEMP_2]) LOAD * Resident [TEMP_3]; DROP Table [TEMP_3];  																																				TRACE >>>>>>>>>>>>>>>>>>>>>> vString_1 - $(vString_1); TRACE >>>>>>>>>>>>>>>>>>>>>> vString_1 - $(vString_1); 
+        DO;	[TEMP]: NoConcatenate LOAD $(vString_1) Resident [TEMP_2] Where Date([$(vDateField_2)]) >= Date('$(vDate_1)') and Date([$(vDateField_2)]) < Date(AddMonths('$(vDate_1)', 1)) Group By $(vString_2); 
+        	Concatenate ([$(vTABLE)]) LOAD * Resident [TEMP]; 
+			Concatenate ([TEMP_2]) LOAD $(vString_3), 1 as [$(vMove_2)] Resident [TEMP]; 
+				DROP Table [TEMP]; LET vDate_1 = Date(AddMonths('$(vDate_1)', 1)); 
+        LOOP while vDate_1 < vDate_2; DROP Table [TEMP_2];
+		//IF vБух THEN; EXECUTE cmd.exe /c del "$(vPath_2)"; ENDIF;
+    ENDIF  
+ENDSUB 
+SUB РасчетИтогов(vTABLE, vPart,vCounter,vField_0,vField_1,vField_2,vType,vString_1,vString_2,vString_3,vTable_1,vTable_2,vDate_1,vDate_2,vPath_1,vPath_2,vMove_2,vFieldName,vDateField, vComment, vComments,vВидДвижения,vБух); 	TRACE >>>>>>>>>>>>>>>>>>>>>> РасчетИтогов;
+//*********************************************************************************************************************************************************
+//	44.	Расчет итогов в регистрах остатков.
+//*********************************************************************************************************************************************************
+	
+	vPart = Pick(WildMatch(vTABLE, '* 1', '* 2', '*'), 1, 2, 0); vTotals = If(Subfield(Subfield(vTABLE, ' ', 1), '.', -1) = 'Остатки', '.Остатки' ,'.Итоги');
+	vTable_1 = Replace(SubField(vTABLE, ' ', 1), vTotals, ''); vTable_2 = vTable_1 & '.НастройкиХраненияИтогов' & Replace(SubField(vTABLE, '.', 1), 'Регистр', 'Регистра'); 
+	CALL Select('$(vTable_2)', '0', '0'); vField_0 = Replace(vTable_2, SubField(vTable_2, '.', 1) & '.', ''); vDate_1 = Date(Peek('$(vField_0).Период')); DROP Table [$(vTable_2)];
+	vPath_1 = If($(vQvdExists('$(vQvdPath)\$(vTable_1).qvd')), '$(vQvdPath)\$(vTable_1).qvd', If($(vQvdExists('$(vQvdPath)\$(vTable_1) 1.qvd')), '$(vQvdPath)\$(vTable_1) 1.qvd', ''));
+	IF Len(vPath_1) = 0 THEN; EXIT SUB; ENDIF
+	CALL GetFileSplit('$(vPath_1)'); 
+   	vDate_1 = If(vPart = 2 and vLoadType = 'Day' and Date(MonthStart(vDaySplitDate)) > vDate_1, Date(MonthStart(vDaySplitDate)), If(vPart = 2 and vFileSplitDate > vDate_1, Date(AddMonths(vFileSplitDate, -1)), vDate_1));
+   	vDate_2 = If(vPart = 1, Date(AddMonths(vFileSplitDate, -1)), Date(MonthStart(Today(), 1))); 
+	IF vDate_1 < vDate_2 THEN; 
+ 		vPath_2 = If(vPart = 2, Replace(vPath_1, ' 1', If(vDate_1 < vFileSplitDate,  ' *', ' 2')), vPath_1); 
+		[QvdFieldHeader]: LOAD FieldName, Comment, trim(SubField(SubField(Comment, 'Тип:', 2), Chr(10), 1)) as Type FROM [$(vPath_1)] (XmlSimple, Table is [QvdTableHeader/Fields/QvdFieldHeader]);
+
+		/* FOR i = 0 to NoOfRows('QvdFieldHeader') -1; 	 //LOAD MsgBox('Test') AutoGenerate 1; //qwe = Peek(vSelectNo, $(i)); 
+			vField 		= Peek('FieldName', $(i), 'QvdFieldHeader'); 
+			vComment 	= Peek('Comment', 	$(i), 'QvdFieldHeader'); 
+			vComments 	= vComments & 'COMMENT Field '& vField & ' With ''$(vComment)''; ';
+		NEXT */
+		// Здесь вставляем код для бух регистров '*.Остатки' и '*.Итоги'. 
+		// Загружаем временную таблицу, где сначала грузим по дебиту и потом по кредиту с добавлением ВидДвижения (1, -1). 
+		// Далее сохраняем в tmp таблицу, меняем путь для vPath_2 и перевыгружаем [QvdFieldHeader]
+		// Нужно заменить названия в полях, убрав Дт и Кт и сохранить комменты для полей
+		// LOAD MsgBox('$(vTABLE)') AutoGenerate 1;
+		IF vTABLE like 'РегистрБухгалтерии*' THEN //and WildMatch(SubField(vTABLE, ' ', 1), '*.Остатки', '*.Итоги')
+			
+			vБух = 1;
+			FOR i = 0 to NoOfRows('QvdFieldHeader') -1; 	 //LOAD MsgBox('Test') AutoGenerate 1; //qwe = Peek(vSelectNo, $(i)); 
+				vField 		= Peek('FieldName', $(i), 'QvdFieldHeader'); 
+				vComment 	= Peek('Comment', 	$(i), 'QvdFieldHeader'); 
+				vType 		= Peek('Type', 		$(i), 'QvdFieldHeader'); 
+				IF not WildMatch(vField, '*ВалютаКт*', '*СчетКт*', '*КоличествоКт*', '*СуммаКт*') THEN
+					vField_1 	= Replace(Replace(Replace(Replace(vField, 'ВалютаДт', 'Валюта'), 'СчетДт', 'Счет'), 'КоличествоДт', 'Количество'), 'СуммаДт', 'Сумма');
+					vString_1 	= vString_1 & If(i > 0, ',', '') & '[$(vField)] as [$(vField_1)]';
+					// Не все типы в регисте бух проставлены, корретируем для расчетов. Можно удалить, после исправления метаданных
+					IF Len(Trim(vType)) = 0 and WildMatch(vField_1, '*.Сумма', '*.ВалютнаяСумма', '*.Количество') THEN; //LOAD MsgBox('Test') AutoGenerate 1; //
+						vComment = Replace(vComment, 'Тип:', 'Тип: Число');
+					ENDIF
+					vComments 	= vComments & 'COMMENT Field '& vField_1 & ' With ''$(vComment)''; ';
+				ENDIF
+				IF not WildMatch(vField, '*ВалютаДт*', '*СчетДт*', '*КоличествоДт*', '*СуммаДт*') THEN
+					vField_2 	= Replace(Replace(Replace(Replace(vField, 'ВалютаКт', 'Валюта'), 'СчетКт', 'Счет'), 'КоличествоКт', 'Количество'), 'СуммаКт', 'Сумма');
+					vString_2 	= vString_2 & If(i > 0, ',', '') & '[$(vField)] as [$(vField_2)]';  
+				ENDIF
+				IF WildMatch(vField, '*.Период', '*.Дата', 'Дата') THEN; vDateField = vField; ENDIF
+			NEXT	
+			vВидДвижения = Replace(vDateField, '.Период', '.ВидДвижения');
+			[TEMP_1]: LOAD Date('$(vDate_1)' + IterNo() - 1) as [$(vDateField)] AutoGenerate 1 While Date('$(vDate_1)' + IterNo() - 1) < '$(vDate_2)'; 
+			[TEMP_2]: LOAD $(vString_1),  1 as [$(vВидДвижения)] From [$(vPath_2)] (qvd) Where Exists([$(vDateField)]); 
+			[TEMP_2]: LOAD $(vString_2), -1 as [$(vВидДвижения)] From [$(vPath_2)] (qvd) Where Exists([$(vDateField)]);
+			$(vComments); COMMENT Field [$(vВидДвижения)] With 'ВидДвижения';
+				vPath_2 = Replace(Replace(Replace(vPath_2, ' 1.', '.'), ' 2.', '.'), 'РегистрБухгалтерии', 'tmpРегистрБухгалтерии'); 
+					STORE [TEMP_2] into [$(vPath_2)] (qvd);
+			
+			DROP Table [TEMP_1], [TEMP_2], [QvdFieldHeader]; vString_1=; vString_2=; vField_1=; vField_2=; 
+			
+			[QvdFieldHeader]: LOAD FieldName, trim(SubField(SubField(Comment, 'Тип:', 2), Chr(10), 1)) as Type FROM [$(vPath_2)] (XmlSimple, Table is [QvdTableHeader/Fields/QvdFieldHeader]); 
+		ENDIF
+
+		FOR vCounter = 1 to NoOfFields('$(vTABLE)');   
+			vField_1  = FieldName($(vCounter), '$(vTABLE)'); vField_2  = Replace(vField_1, vTotals, ''); vType = Lookup('Type', 'FieldName', '$(vField_2)', 'QvdFieldHeader'); 
+			IF WildMatch(vField_1, '*.Период', '*.Дата', 'Дата') THEN; vDateField_1 = vField_1; vDateField_2 = vField_2; vType = 'Период'; vMove_2 = Replace(vField_2, SubField(vField_2, '.', -1), 'ВидДвижения'); ENDIF; 
+			vString_1 = vString_1 & If(vCounter > 1, ',', '') & If(vType =  'Число', 'Sum([$(vField_2)] * [TEMP])', If(vType = 'Период', 'Date(AddMonths(''$'&'(vDate_1)'', 1))', If(vType like 'ВидДвижения*', 0, '[$(vField_2)]'))) & ' as [$(vField_1)]'; 
+			vString_2 = vString_2 & If(vCounter > 1 and not WildMatch(vType, 'Период', 'Число', 'ВидДвижения*'), ',', '') & If(WildMatch(vType, 'Период', 'Число', 'ВидДвижения*'), '', '[$(vField_2)]'); vString_2 = If(Left(vString_2, 1) = ',', Mid(vString_2, 2), vString_2);
+			vString_3 = vString_3 & If(vCounter > 1, ',', '') & '[$(vField_1)] as [$(vField_2)]'; 
+		NEXT; DROP Table [QvdFieldHeader]; vString_1 = Replace(vString_1, '[TEMP]', '[$(vMove_2)]');  
+		[TEMP_1]: LOAD Date('$(vDate_1)' + IterNo() - 1) as [$(vDateField_2)] AutoGenerate 1 While Date('$(vDate_1)' + IterNo() - 1) < '$(vDate_2)'; 											vVar = NoOfRows('TEMP_1'); 	$(vTrace(Количество строк в TEMP_1 $(vVar), =));
+		[TEMP_2]: LOAD *, '' as NoConcatenate From [$(vPath_2)] (qvd) Where Exists([$(vDateField_2)]); DROP Table [TEMP_1]; 																	vVar = NoOfRows('TEMP_2'); 	$(vTrace(Количество строк в TEMP_2 $(vVar), =));	
+		vFrom = If(vPart < 2 or (vPart = 2 and vDate_1 >= vFileSplitDate), 'Resident [$(vTABLE)]', 'From [$(vQvdPath)\'& Replace(vTABLE, ' 2', ' 1') &'.qvd](qvd)'); 												   	$(vTrace(vFrom - $(vFrom), =));	
+		[TEMP_3]: NoConcatenate LOAD $(vString_3), 1 as [$(vMove_2)] $(vFrom); Inner Join LOAD '$(vDate_1)' as [$(vDateField_2)] AutoGenerate 1; 												vVar = NoOfRows('TEMP_3'); 	$(vTrace(Количество строк в TEMP_2 $(vVar), =));
+		Concatenate([TEMP_2]) LOAD * Resident [TEMP_3]; DROP Table [TEMP_3];  																																				TRACE >>>>>>>>>>>>>>>>>>>>>> vString_1 - $(vString_1); TRACE >>>>>>>>>>>>>>>>>>>>>> vString_1 - $(vString_1); 
+        DO;	[TEMP]: NoConcatenate LOAD $(vString_1) Resident [TEMP_2] Where Date([$(vDateField_2)]) >= Date('$(vDate_1)') and Date([$(vDateField_2)]) < Date(AddMonths('$(vDate_1)', 1)) Group By $(vString_2); 
+        	Concatenate ([$(vTABLE)]) LOAD * Resident [TEMP]; 
+			Concatenate ([TEMP_2]) LOAD $(vString_3), 1 as [$(vMove_2)] Resident [TEMP]; 
+				DROP Table [TEMP]; LET vDate_1 = Date(AddMonths('$(vDate_1)', 1)); 
+        LOOP while vDate_1 < vDate_2; DROP Table [TEMP_2];
+		IF vБух THEN; EXECUTE cmd.exe /c del "$(vPath_2)"; ENDIF;
+//		$(vComments);
+    ENDIF  
+ENDSUB 
+SUB MultiJoin_23(vTABLE,vFIELDS, vR_Fields,vT_Fields,vFieldName,vMainPart,vFieldType,vCounter,vField,vRow,vCurType,vCurSinm,vCurName,vCurStrg); 					
+//*********************************************************************************************************************************************************
+//	45.	Добавление значений к ссылкам в к таблице vTable. 
+//*********************************************************************************************************************************************************
+	vR_Fields 	= Trim(If(Left(vFIELDS, 1) = ',', Right(vFIELDS, Len(vFIELDS) - 1), vFIELDS)); 																					//LOAD MsgBox('$(vR_Fields)') AutoGenerate 1;
+	FOR vCounter = 0 to NoOfFields('$(vTABLE)') ; vT_Fields = vT_Fields & ',' & FieldName($(vCounter), '$(vTABLE)'); NEXT; vT_Fields = Right(vT_Fields, Len(vT_Fields) - 1); 	//LOAD MsgBox('$(vT_Fields)') AutoGenerate 1;
+	IF Len(vR_Fields) > 0 THEN; 
+		[Enumes_45]:  LOAD 'Перечисление.' & [Enums.Перечисление] as [Представление], [Enums.Порядок], [Enums.Синоним] Resident [Enums]; 
+			Inner Join LOAD Distinct [Представление], [ИмяХранения] Resident [Metas];
+		FOR Each vFieldName in $(vR_Fields);  
+			vMainPart 	= Left(vFieldName, Index(vFieldName, '.', -1));  
+
+			// vFieldType  = Pick(WildMatch(vT_Fields, '*$(vMainPart)Тип*', '*$(vMainPart)_Value_RTRef*', '*$(vMainPart)_Value_TYPE*'),  '$(vMainPart)Тип', 	 '$(vMainPart)_Value_RTRef',   '$(vMainPart)_Value_TYPE'); 
+			
+			//vFieldType  = Pick(WildMatch(vT_Fields, Replace(vFieldName, '_RRRef', '_RTRef'), '*$(vMainPart)Тип*', '*$(vMainPart)_Value_RTRef*', '*$(vMainPart)_Value_TYPE*'),  Replace(vFieldName, '_RRRef', '_RTRef'), '$(vMainPart)Тип', 	 '$(vMainPart)_Value_RTRef',   '$(vMainPart)_Value_TYPE'); 
+			
+			
+			vFieldType  = Pick(WildMatch(vT_Fields, '*'& Replace(vFieldName, '_RRRef', '') & '_RTRef' &'*', '*$(vMainPart)Тип*', '*$(vMainPart)_Value_RTRef*', '*$(vMainPart)_Value_TYPE*'),  Replace(vFieldName, '_RRRef', '') & '_RTRef', '$(vMainPart)Тип', 	 '$(vMainPart)_Value_RTRef',   '$(vMainPart)_Value_TYPE'); 
+				LOAD MsgBox('$(vT_Fields)') 	AutoGenerate 1;
+				LOAD MsgBox('$(vFieldName)') 	AutoGenerate 1; 
+				LOAD MsgBox('$(vMainPart)') 	AutoGenerate 1;  
+				LOAD MsgBox('$(vFieldType)') 	AutoGenerate 1;
+			IF Len(Trim(vFieldType)) = 0; LOAD MsgBox('Добавьте тип реквизита в выгрузку') Autogenerate 1; ENDIF
+			[JoinTypes_45]: LOAD Distinct [$(vFieldType)] Resident [$(vTABLE)]; Inner Join([JoinTypes_45]) LOAD Keepchar([ИмяХранения], '0123456789') as [$(vFieldType)], [Представление], [Синоним], [ИмяХранения] Resident [Metas] 
+				Where WildMatch([ИмяХранения], '_document*', '_Reference*', '_Enum*', '_CKinds*') 
+					and not [ИмяХранения] like '_*_*' 
+						and Len(Trim(Keepchar([ИмяХранения], '0123456789'))) > 0;
+						//and Len(Trim([ИмяХранения])) > 0;
+
+			[JoinTable_45]: LOAD '' as [Ссылка] AutoGenerate 0;
+			FOR vRow = 0 to NoOfRows('JoinTypes_45') - 1; 
+			   	LET vCurType 	= Peek('Представление', vRow, 'JoinTypes_45'); 		
+			   	LET vCurSinm 	= Peek('Синоним', 		vRow, 'JoinTypes_45');		
+			   	LET vCurName 	= Peek('ИмяХранения', 	vRow, 'JoinTypes_45');	
+				LET vCurStrg 	= Pick(WildMatch(vCurType, 'Справочник.*', 'ПланВидовРасчета.*', 'Документ.*', 'Перечисление.*'), '_Description', '_Description', ' ''$(vCurSinm) '' + _Number + '' от '' + CONVERT(VARCHAR, DateAdd(Year, -[Offset], _Date_Time), 104) +'' ''+ CONVERT(VARCHAR, DateAdd(Year, -[Offset], _Date_Time), 24) ', '''$(vCurName).'' + REPLACE(STR(_EnumOrder), '' '', '''')'); 
+
+				IF  vCurType like 'Перечисление.*' THEN; 
+					TEMP: SELECT Distinct _IDRRef as [Ссылка], $(vCurStrg) as [_Значение] From $(vCurName);
+				ELSE
+					// Здесь нужно добавить условие. Если документ существует в qvd, то забирать оттуда.
+			   		Concatenate ([JoinTable_45]) SELECT Distinct '$(vCurName)' as [Table_], _IDRRef as [Ссылка], $(vCurStrg) as [Значение] From $(vCurName), [_YearOffset];
+				ENDIF
+			NEXT; 
+			IF NoOfRows('TEMP') > 0 THEN; 
+				Left Join (TEMP) LOAD [ИмяХранения] &'.'& [Enums.Порядок] as [_Значение], [Enums.Синоним] as [Значение] Resident [Enumes_45]; 
+				Concatenate ([JoinTable_45]) LOAD [Ссылка], [Значение] Resident [TEMP]; DROP Tables [TEMP]; 
+			ENDIF
+			
+			//vTest1 = NoOfRows('$(vTABLE)');
+			
+			If NoOfRows('JoinTable_45') > 0 THEN;
+			//	Left Join ([$(vTABLE)]) LOAD [Ссылка] as [$(vFieldName)], [Значение] as [$(vMainPart)Представление] Resident [JoinTable_45]; 
+
+
+				vПредставление = If(vFieldName like '*._Value*_RRRef' and vTABLE like '*ИтогиПоСчетамССубконто*', Replace(Replace(vFieldName, '_Value', 'Субконто'), '_RRRef', '.Представление'), '$(vMainPart)Представление');
+				Left Join ([$(vTABLE)]) LOAD [Ссылка] as [$(vFieldName)], [Значение] as [$(vПредставление)] Resident [JoinTable_45]; 				
+				
+			ENDIF
+			
+			//vTest1 = vTest1 & ' - ' & NoOfRows('$(vTABLE)'); LOAD MsgBox('$(vTest1)') autogenerate 1;
+			
+			DROP Table [JoinTable_45], [JoinTypes_45];
+//			vMainPart = If(Right(vMainPart, 1) = '.', Left(vMainPart, Len(vMainPart) - 1), vMainPart);
+//			Left Join ([$(vTABLE)]) LOAD [Ссылка] as [$(vFieldName)], [Значение] as [$(vMainPart)] Resident [JoinTable_45]; DROP Table [JoinTable_45], [JoinTypes_45];
+		NEXT; DROP Table [Enumes_45];
+	ENDIF; CALL DropVars('vTABLE, vFIELDS');
+ENDSUB
+SUB MultiJoin(vTABLE,vFIELDS, vR_Fields,vNumber,vDescr,vT_Fields,vFieldName,vMainPart,vFieldType,vCounter,vField,vRow,vCurType,vCurSinm,vCurName,vCurStrg,str1,str2,str3,i,vWhere,vCurNum); 
+//*********************************************************************************************************************************************************
+//	45.	Добавление значений к ссылкам в к таблице vTable. 
+//*********************************************************************************************************************************************************
+	vR_Fields 	= Trim(If(Left(vFIELDS, 1) = ',', Right(vFIELDS, Len(vFIELDS) - 1), vFIELDS)); 																					//LOAD MsgBox('$(vR_Fields)') AutoGenerate 1;
+	FOR vCounter = 0 to NoOfFields('$(vTABLE)') ; vT_Fields = vT_Fields & ',' & FieldName($(vCounter), '$(vTABLE)'); NEXT; vT_Fields = Right(vT_Fields, Len(vT_Fields) - 1); 	//LOAD MsgBox('$(vT_Fields)') AutoGenerate 1;
+	IF Len(vR_Fields) > 0 THEN; 
+		[Enumes_45]:  LOAD 'Перечисление.' & [Enums.Перечисление] as [Представление], [Enums.Порядок], [Enums.Синоним] Resident [Enums]; 
+			Inner Join LOAD Distinct [Представление], [ИмяХранения] Resident [Metas];
+		FOR Each vFieldName in $(vR_Fields); 
+			str1=; str2=; str3=;
+			vMainPart 	= Left(vFieldName, Index(vFieldName, '.', -1));  
+			
+			vFieldType  = Pick(WildMatch(vT_Fields, '*'& Replace(vFieldName, '_RRRef', '') & '_RTRef' &'*', '*$(vMainPart)ТипОбъекта*', '*$(vMainPart)Тип*', '*$(vMainPart)_Value_RTRef*', '*$(vMainPart)_Value_TYPE*'),  Replace(vFieldName, '_RRRef', '') & '_RTRef', '$(vMainPart)ТипОбъекта', '$(vMainPart)Тип', 	 '$(vMainPart)_Value_RTRef',   '$(vMainPart)_Value_TYPE'); 
+				 //LOAD MsgBox('$(vT_Fields)') 	AutoGenerate 1;
+				 //LOAD MsgBox('$(vFieldName)') 	AutoGenerate 1; 
+				 //LOAD MsgBox('$(vMainPart)ТипОбъекта') 	AutoGenerate 1;  
+				 //LOAD MsgBox('$(vFieldType)') 	AutoGenerate 1;
+			IF Len(Trim(vFieldType)) = 0; LOAD MsgBox('Добавьте тип реквизита в выгрузку') Autogenerate 1; ENDIF
+			[JoinTypes_45]: LOAD Distinct [$(vFieldType)] Resident [$(vTABLE)]; Inner Join([JoinTypes_45]) LOAD Keepchar([ИмяХранения], '0123456789') as [$(vFieldType)], [Представление], [Синоним], [ИмяХранения] Resident [Metas] 
+				Where WildMatch([ИмяХранения], '_document*', '_Reference*', '_Enum*', '_CKinds*') 
+					and not [ИмяХранения] like '_*_*' 
+						and Len(Trim(Keepchar([ИмяХранения], '0123456789'))) > 0;
+						//and Len(Trim([ИмяХранения])) > 0;
+
+			[JoinTable_45]: LOAD '' as [Ссылка] AutoGenerate 0;
+			FOR vRow = 0 to NoOfRows('JoinTypes_45') - 1; 
+			   	LET vCurType 	= Peek('Представление', vRow, 'JoinTypes_45'); 		
+			   	LET vCurSinm 	= Peek('Синоним', 		vRow, 'JoinTypes_45');		
+			   	LET vCurName 	= Peek('ИмяХранения', 	vRow, 'JoinTypes_45');	
+				LET vCurNum 	= Peek('$(vFieldType)', vRow, 'JoinTypes_45');	
+				
+				set vSql.Convert = CONVERT(VARCHAR, DateAdd(Year, -[Offset], $1), 104);
+				
+				//IF vCurType like 'Документ.*' THEN
+				[T77]: NoConcatenate LOAD * Resident [Metas] Where ИмяТаблицыQV = '$(vCurType)'; // and [ИмяХранения] = '_Number'
+				vNumber 	= If(Len(Lookup('Представление', 'ИмяХранения', '_Number', 'T77')) > 0, '_Number', '''''');
+				vDescr		= If(Len(Lookup('Представление', 'ИмяХранения', '_Description', 'T77')) > 0, '_Description', '_Code');
+				Drop Table T77;
+				//ENDIF
+
+				//LET vCurStrg 	= Pick(WildMatch(vCurType, 'Справочник.*', 'ПланВидовРасчета.*', 'Документ.*', 'Перечисление.*'), '_Description', '_Description', ' ''$(vCurSinm) '' + _Number + '' от '' + CONVERT(VARCHAR, DateAdd(Year, -[Offset], _Date_Time), 104) +'' ''+ CONVERT(VARCHAR, DateAdd(Year, -[Offset], _Date_Time), 24) ', '''$(vCurName).'' + REPLACE(STR(_EnumOrder), '' '', '''')'); 
+				//LET vCurStrg 	= Pick(WildMatch(vCurType, 'Справочник.*', 'ПланВидовРасчета.*', 'Документ.*', 'Перечисление.*'), '_Description', '_Description', ' ''$(vCurSinm) '' + _Number + '' от '' + $(vSql.Convert(_Date_Time)) ', '''$(vCurName).'' + CAST(_EnumOrder AS varchar(max))'); 
+				LET vCurStrg 	= Pick(WildMatch(vCurType, 'Справочник.*', 'ПланВидовРасчета.*', 'Документ.*', 'Перечисление.*'), '$(vDescr)', '$(vDescr)', ' ''$(vCurSinm) '' + $(vNumber) + '' от '' + $(vSql.Convert(_Date_Time)) ', '''$(vCurName).'' + CAST(_EnumOrder AS varchar(max))'); 
+				//LOAD MsgBox('$(vCurStrg)') 	AutoGenerate 1;
+				IF  vCurType like 'Перечисление.*' THEN; 
+					//TEMP: SELECT Distinct _IDRRef as [Ссылка], $(vCurStrg) as [_Значение] From $(vCurName);
+					set vQuery = 
+					TEMP: 
+					SELECT Distinct 
+						'$(vCurNum)' as [$(vFieldType)],
+						_IDRRef as [Ссылка], 
+						$(vCurStrg) as [_Значение] 
+					From $(vCurName);
+					IF $((SQL)) = 'PG' THEN; CALL msTOpg; ENDIF; 
+					$(vQuery);
+				ELSE
+				
+					// Данная часть добавляеа авторов и инициаторов в доках для бух регистров по инициативе ДВиК
+					IF vTABLE like 'РегистрБухгалтерии*' and vMainPart like '*регистратор.' and vCurType like 'Документ.*' THEN;
+						T7: NoConcatenate LOAD Distinct [Представление], [Синоним], [ИмяХранения] Resident [Metas] Where Match([Представление], '$(vCurType).Автор' , '$(vCurType).Инициатор');// and not [Представление] = '$(vCurType).Инициатор платежа';
+						str1 = ; 
+						FOR i = 0 to NoOfRows('T7') - 1;
+							str3 = Subfield(Peek('Представление', 	i, 'T7'), '.', -1);
+							str1 = str1 & ', ' &Chr(13)& Peek('ИмяХранения', 	i, 'T7') & 	 ' as [$(vMainPart)$(str3).Ссылка]';  // Доп строка запроса к sql для получения реквизитов регистратора
+							str2 = str2 & If(SubstringCount('$(str2)', '$(str3)') = 0, ', [$(vMainPart)$(str3).Ссылка]'); // Список доп полей для джойна к основоной балице
+						NEXT
+						Drop Table T7;
+
+						// IF vCurType = 'Документ.ПлатежноеПоручениеИсходящее' THEN
+							// LOAD MsgBox('$(str1)') 	AutoGenerate 1;
+							// LOAD MsgBox('$(str2)') 	AutoGenerate 1;
+						// ENDIF
+
+					ENDIF
+
+					
+					// Здесь нужно добавить условие. Если документ существует в qvd, то забирать оттуда.
+			   		//Concatenate ([JoinTable_45]) SELECT Distinct '$(vCurName)' as [Table_], _IDRRef as [Ссылка], $(vCurStrg) as [Значение] $(str1) From $(vCurName), [_YearOffset];
+					LET vWhere 	= If( vCurStrg = '_Description', 'WHERE $(vCurStrg) IS NOT NULL AND $(vCurStrg) <> ''''', '');
+
+					set vQuery = 
+					[T1]:
+					SELECT Distinct 
+						'$(vCurNum)' as [$(vFieldType)],
+						_IDRRef as [Ссылка], 
+						$(vCurStrg) as [Значение] $(str1) 
+					From $(vCurName)
+					,_YearOffset $(vWhere);
+					//LOAD MsgBox('$(vQuery)') 	AutoGenerate 1;
+					IF $((SQL)) = 'PG' THEN; CALL msTOpg; ENDIF; 
+					//LOAD MsgBox('$(vQuery)') 	AutoGenerate 1;
+					
+					Concatenate ([JoinTable_45]) $(vQuery);
+				ENDIF
+			NEXT; 
+			IF NoOfRows('TEMP') > 0 THEN; 
+				Left Join (TEMP) LOAD [ИмяХранения] &'.'& [Enums.Порядок] as [_Значение], [Enums.Синоним] as [Значение] Resident [Enumes_45]; 
+				Concatenate ([JoinTable_45]) LOAD [$(vFieldType)], [Ссылка], [Значение] Resident [TEMP]; DROP Tables [TEMP]; 
+			ENDIF
+			
+			//vTest1 = NoOfRows('$(vTABLE)');
+			
+			If NoOfRows('JoinTable_45') > 0 THEN;
+			//	Left Join ([$(vTABLE)]) LOAD [Ссылка] as [$(vFieldName)], [Значение] as [$(vMainPart)Представление] Resident [JoinTable_45]; 
+
+				// Переименуем поля итогах бух регистров
+					vПредставление = If(vFieldName like '*._Value*_RRRef' and vTABLE like '*ИтогиПоСчетамССубконто*', Replace(Replace(vFieldName, '_Value', 'Субконто'), '_RRRef', '.Представление'), '$(vMainPart)Представление');
+
+				Left Join ([$(vTABLE)]) LOAD [$(vFieldType)], [Ссылка] as [$(vFieldName)], [Значение] as [$(vПредставление)] $(str2) Resident [JoinTable_45]; 	//			
+				
+			ENDIF
+			
+			//vTest1 = vTest1 & ' - ' & NoOfRows('$(vTABLE)'); LOAD MsgBox('$(vTest1)') autogenerate 1;
+			
+			DROP Table [JoinTable_45], [JoinTypes_45];
+//			vMainPart = If(Right(vMainPart, 1) = '.', Left(vMainPart, Len(vMainPart) - 1), vMainPart);
+//			Left Join ([$(vTABLE)]) LOAD [Ссылка] as [$(vFieldName)], [Значение] as [$(vMainPart)] Resident [JoinTable_45]; DROP Table [JoinTable_45], [JoinTypes_45];
+		NEXT; DROP Table [Enumes_45];
+	ENDIF; CALL DropVars('vTABLE, vFIELDS');
+ENDSUB
+SUB MultiJoin_(V1,V2, V3,V4,V5,V6,V7,V8,V9,V10,V11,V12,V13); 					
+	V3 	= Trim(If(Left(V2, 1) = ',', Right(V2, Len(V2) - 1), V2)); 																					
+	FOR V8 = 0 to NoOfFields('$(V1)') ; V4 = V4 & ',' & FieldName($(V8), '$(V1)'); NEXT; V4 = Right(V4, Len(V4) - 1); 	
+	IF Len(V3) > 0 THEN; 
+		[T1]:  LOAD 'Перечисление.' & [Enums.Перечисление] as [Представление], [Enums.Порядок], [Enums.Синоним] Resident [Enums]; Inner Join LOAD Distinct [Представление], [ИмяХранения] Resident [Metas];
+		FOR Each V5 in $(V3); 
+			V6 	= Left(V5, Index(V5, '.', -1));  V7  = Pick(WildMatch(V4, '*$(V6)Тип*', '*$(V6)_Value_RTRef*', '*$(V6)_Value_TYPE*'), '$(V6)Тип', '$(V6)_Value_RTRef', '$(V6)_Value_TYPE'); 
+			[T2]: LOAD Distinct [$(V7)] Resident [$(V1)]; Inner Join([T2]) LOAD Keepchar([ИмяХранения], '0123456789') as [$(V7)], [Представление], [Синоним], [ИмяХранения] Resident [Metas] Where WildMatch([ИмяХранения], '_document*', '_Reference*', '_Enum*') and not [ИмяХранения] like '_*_*' and Len(Trim([ИмяХранения])) > 0;
+			FOR V9 = 0 to NoOfRows('T2') - 1; 
+			   	LET V10 	= Peek('Представление', V9, 'T2'); 		
+			   	LET V11 	= Peek('Синоним', 		V9, 'T2');		
+			   	LET V12 	= Peek('ИмяХранения', 	V9, 'T2');		
+				LET V13 	= Pick(WildMatch(V10, 'Справочник.*', 'Документ.*', 'Перечисление.*'), '_Description', ' ''$(V11) '' + _Number + '' от '' + CONVERT(VARCHAR, DateAdd(Year, -[Offset], _Date_Time), 104) +'' ''+ CONVERT(VARCHAR, DateAdd(Year, -[Offset], _Date_Time), 24) ', '''$(V12).'' + REPLACE(STR(_EnumOrder), '' '', '''')'); 
+				IF  V10 like 'Перечисление.*' THEN; 
+					[T4]: SELECT Distinct _IDRRef as [F1], $(V13) as [F2] From $(V12);
+				ELSE
+			   		[T3]: SELECT Distinct _IDRRef as [F1], $(V13) as [F3] From $(V12), [_YearOffset];
+				ENDIF
+			NEXT; 
+			IF NoOfRows('T4') > 0 THEN; Left Join (T4) LOAD [ИмяХранения] &'.'& [Enums.Порядок] as [F2], [Enums.Синоним] as [F3] Resident [T1]; Concatenate ([T3]) LOAD [F1], [F3] Resident [T4]; DROP Tables [T4]; ENDIF
+			Left Join ([$(V1)]) LOAD [F1] as [$(V5)], [F3] as [$(V6)Представление] Resident [T3]; DROP Table [T3], [T2];
+		NEXT; DROP Table [T1];
+	ENDIF; CALL DropVars('V1, V2');
+ENDSUB
+SUB NormalizeScript(vVar,vS1,vS2,vS3,vLen,vDlm1,vDlm2,vC1);			TRACE >>>>>>>>>>>>>>>>>>>>>> NornalizeScript;
+//*********************************************************************************************************************************************************
+//	46.	Форматирование скрипта загрузки
+//*********************************************************************************************************************************************************
+	FOR Each vVar in 'vSelectScript', 'vLoadScript';
+		vS1 = [$(vVar)];  // vS1 - полный скрипт, vS2 - построчое получение полного исправленного скрипта, vS3 - кусок между сплитами, vSplitString - правая часть vS3 после vDlm2
+		IF Len(vS1) > 0 THEN
+			FOR Each vDlm1 in 'as [', '//', 'with (nolock)'
+				vLen 		= Pick(WildMatch(vDlm1, 'as [', '//', 'with (nolock)'), 100, 80, 80); 
+				vDlm2		= Pick(WildMatch(vDlm1, 'as [', '//', 'with (nolock)'), Chr(13), 'as [', 'as ['); 
+				FOR vC1 = 1 to SubStringCount(vS1, vDlm1); 
+					vS3 = SubField(vS1, vDlm1, vC1);
+					vSplitString = Replace(SubField(vS3, vDlm2, -1), Chr(9), '    ');
+					IF vDlm1 = 'as [' and Len(vSplitString) > vLen -1 and vVar = 'vSelectScript' THEN
+						vSplitString = Chr(13) & vSplitString;
+						CALL SplitString(vLen); //LOAD MsgBox('$(vSplitString)') AutoGenerate 1;
+						vS3 = Mid(vS3, 1, Index(vS3, vDlm2, -1) -1) & Replace(vSplitString, '    ', Chr(9));
+						vSplitString = Replace(SubField(vS3, vDlm2, -1), Chr(9), '    ');
+					ENDIF
+					vS2 = vS2 & vS3 & Repeat(Chr(9), Ceil((vLen - Len(vSplitString)) / 4)) & vDlm1;
+				NEXT
+				vS2 = vS2 & SubField(vS1, vDlm1, - 1) ; vS1 = vS2; vS2 = Null(); vLen = Null();
+				[$(vVar)] = vS1;
+			NEXT
+		ENDIF
+	NEXT
+ENDSUB
+SUB SplitString(vMaxLength,vS1,vS2,vS3,vC1,vSplitIndex)
+    // let vMaxLength = 100; // Максимальная длина строки
+    vS1 = Mid(vSplitString, Index(vSplitString, Chr(13), -1), vMaxLength); // Последняя подстрока начиная с переноса.
+    // Проверяем длину строки
+    IF len(RTrim(vS1)) > vMaxLength - 2 THEN; 
+    	vS2 = Len(RTrim(vS1)) - Len(Trim(vS1)) + 4; // Считаем отступы 
+        // Поиск подходящего места для разделения строки
+        FOR vC1 = 1 to 10
+            vSplitIndex = Index(vS1, ' ', -vC1);
+            IF not WildMatch(Mid(vS1, vSplitIndex -1, 3) , '3 0', 'Тут всякие исключения') or vSplitIndex < 3 THEN; EXIT FOR; ENDIF //, '*=*', '*+*', '*-*', '*<*', '*>*'
+        NEXT;
+		IF vSplitIndex < 3 THEN; EXIT SUB; ENDIF
+        // Проверка наличия подходящего места для разделения
+        vS3 = Left(vS1, vSplitIndex) & Chr(13) & Repeat(' ', vS2) & Mid(vS1, vSplitIndex); 
+        vSplitString = Replace(vSplitString, vS1, vS3); //  & 'Нохча'
+        // Рекурсивный вызов для обработки оставшейся части
+        CALL SplitString(vMaxLength)
+    ENDIF;
+ENDSUB;
+SUB MinDate(vTABLE, vFIELD); TRACE ------------------------------ MinDate; $(vCheckTable); 
+//*********************************************************************************************************************************************************
+//	47.	Получение минимальной даты в поле таблицы.
+//*********************************************************************************************************************************************************
+	[MinDate]: NoConcatenate LOAD Min([$(vFIELD)]) as [MinDate] Resident [$(vTABLE)]; vMinDate = Date(Peek('MinDate')); DROP Table [MinDate];
+ENDSUB
+SUB MaxDate(vTABLE, vFIELD); TRACE ------------------------------ MaxDate; $(vCheckTable); 
+//*********************************************************************************************************************************************************
+//	48.	Получение максимальной даты в поле таблицы.
+//*********************************************************************************************************************************************************
+	[MaxDate]: NoConcatenate LOAD Max([$(vFIELD)]) as [MaxDate] Resident [$(vTABLE)]; vMaxDate = Date(Peek('MaxDate')); DROP Table [MaxDate];
+ENDSUB
+SUB IntervalMatch.3(vTABLE, vDATESTART, vDATEEND); TRACE ------------------------------ IntervalMatch.3; $(vCheckTable); 
+//*********************************************************************************************************************************************************
+//	49.	IntervalMatch для дат.
+//*********************************************************************************************************************************************************
+	CALL MinDate('$(vTABLE)', '$(vDATESTART)'); CALL MaxDate('$(vTABLE)', '$(vDATEEND)');
+	[TEMP_49]: LOAD Date('$(vMinDate)' + IterNo() - 1) as [Дата] AutoGenerate 1 While Date('$(vMinDate)' + IterNo() - 1) <= Date('$(vMaxDate)');
+	Inner Join(TEMP_49) IntervalMatch (Дата) LOAD Distinct [$(vDATESTART)], [$(vDATEEND)] Resident [$(vTABLE)]; Inner Join(TEMP_49) LOAD * Resident [$(vTABLE)]; 
+	DROP Fields [$(vDATESTART)], [$(vDATEEND)] From [TEMP_49]; DROP Table [$(vTABLE)]; RENAME Table [TEMP_49] to [$(vTABLE)]; 
+ENDSUB
+SUB QVSDeveloper.DropFieldExist (vL._Root)
+//*********************************************************************************************************************************************************
+//	50.	DropFieldExist
+//*********************************************************************************************************************************************************
+ IF (NOT ISNULL(FIELDVALUECOUNT('$(vL._Root)'))) THEN
+ DROP FIELD '$(vL._Root)';
+ ELSE 
+ TRACE '$(vL._Root) Field Not Found';
+ ENDIF
+ SET vL._Root=;
+END SUB;
+SUB DROP // Удаляем временные переменные и таблицы после каждой процедуры
+//*********************************************************************************************************************************************************
+//	51.	Удаляем временные переменные и таблицы после каждой процедуры
+//*********************************************************************************************************************************************************
+ FOR V = 1 to 10; [V$(V)] = Null(); IF NoOfRows('T$(V)') >= 0 THEN; DROP Table [T$(V)]; ENDIF; NEXT; V = Null();
+ IF NoOfFields('TEMP') > 0 THEN; DROP Table TEMP; ENDIF;
+END SUB;
+SUB CheckPoint($(VA)); //Номер точки, ...
+//*********************************************************************************************************************************************************
+//	52.	Проверка модуля.
+//*********************************************************************************************************************************************************
+//	IF V1 = 1 THEN; IF Len(Trim(V2)) = 0 THEN; V2 = TableName(NoOfTables() - 1); ENDIF; ENDIF;
+	IF Len(Trim(V3)) = 0 THEN; V3 = TableName(NoOfTables() - 1); ENDIF;
+
+	V11 = SubField(vCommonScript, 'SUB CheckPoint($(V1),', 1);	// Модуль до вызова
+	V12 = Num(SubStringCount(V11, '///' & '$tab '), 00);		// Номер листа "вызова"
+	V13 = SubField(V11, '///' & '$tab ', -1);					// Модуль с начала листа до вызова
+	V14 = Num(SubStringCount(V13, Chr(13)), 000);				// Количество строк на листе до вызова
+	V15 = Trim(SubField(V13, Chr(13), 1));						// Название листа
+	V16 = NoOfRows('$(V2)');
+
+	IF V2 = 1 THEN; Left Join ([$(V3)]) LOAD 1 as RowCheck Autogenerate 1; ENDIF;
+ENDSUB
+SUB AddToLog($(VA)) //Строка, ...
+//*********************************************************************************************************************************************************
+//	53.	Проверка модуля.
+//*********************************************************************************************************************************************************
+	vLog = vLog & Date(Now(), 'YYYY.MM.DD') & Chr(9) & Time(Now(), 'hh:mm:ss') & Chr(9) & V1 & Chr(13);					
+ENDSUB
+SUB TableTest($(VA)); $(VT(V7,$(V1))); // Модификатор действия, Имя таблицы $1: 1 - проверка тек состояния добавлением поля, 2 - Перед Join, 3 - После Join, 4 - Перед Concatenate, 5 - После Concatenate, 6 - Перед Outer Join, 7 - После Outer Join, 9 - финальная проверка, 
+//*********************************************************************************************************************************************************
+//	53.	Проверка целостности таблиц.
+//*********************************************************************************************************************************************************
+	VC  = VC + 1;																					// Счетчик вызовов
+	V1 = If(Match(0, V1, Len(Trim(V1))), V7, V1);													// Получение имени таблицы
+	V8 = Pick(Match(V2, 1,4,6,8,9), 'Check Point ' & VC, 'Left Join', 'Concatenate', 'Outer Join');	// Операция с таблицей
+	V9 = '&Chr(9)&';																				// TAB в строке
+	// Определение места вызова в скрипте
+	V11 = Left(vCommonScript, Index(vCommonScript, 'TableTest', VC));								// Скрипт до вызова
+	V12 = Num(SubStringCount(V11, '///' & '$tab '), 00);											// Номер листа 
+	V13 = SubField(V11, '///' & '$tab ', -1);														// Скрипт на листе до вызова
+	V14 = Num(SubStringCount(V13, Chr(13)));														// Номер строки
+	V15 = Trim(SubField(V13, Chr(13), 1));															// Имя листа
+	V16 = 'S53' $(V9) V15 &':'& V14 $(V9) V1;													// Строка для лога
+	V17 = NoOfRows('$(V7)');																		// Строка для лога
+
+	// Добавление поля и запись для проверки
+	IF V2 = 1 THEN; V20 = 'TF:' & VC; Left Join ([$(V1)]) LOAD 1 as [$(V20)] Autogenerate 1; ENDIF 				
+
+	IF V2 = 2 THEN; //vTEST2 = V7;
+		FOR V23 = 1 to NoOfFields('$(V7)'); V24 = FieldName(V23, '$(V7)'); 
+			IF V24 like 'TF:*' THEN; V20 = V24; 
+				[T99]: LOAD [$(V24)] Resident [$(V7)]; Inner Join LOAD 1 as [$(V24)] AutoGenerate 1; V17 = NoOfRows('T99'); DROP Table [T99]; 
+				V8 = Replace(V24, 'TF:', 'Check Point '); CALL AddToLog(V16 $(V9) V17 $(V9) V20 $(V9) V8);
+			ENDIF
+		NEXT
+		EXIT SUB
+	ENDIF
+	// Финальная проверка - подставление количества строк  $(V9) 
+	IF V2 = 3 THEN; 
+		FOR V21 = 0 to NoOfTables() -1; V22 = TableName('$(V21)'); //vTEST3 = Chr(13) & V22 &':';
+			FOR V23 = 1 to NoOfFields('$(V22)'); //vTEST3 = vTEST3 $(V9) V24;
+				V24 = FieldName(V23, '$(V22)'); 
+				IF V24 like 'TF:*' THEN; V25 = V25 & '[$(V24)], ';  //vTEST2 = vTEST2 $(V9) V24;
+					[T99]: LOAD [$(V24)] Resident [$(V22)]; Inner Join LOAD 1 as [$(V24)] AutoGenerate 1; V17 = NoOfRows('T99'); DROP Table [T99]; 
+					vLog = Replace(vLog, V24, V17);
+				ENDIF
+			NEXT
+		NEXT
+		V25 = Left(V25, Len(V25) -2); DROP Fields $(V25);
+		EXIT SUB
+	ENDIF 
+	
+	CALL AddToLog(V16 $(V9) V17 $(V9) V20 $(V9) V8);
+ENDSUB
+SUB S54($(VA));	 																	// VL - log variable		
+//*********************************************************************************************************************************************************
+//	54.	Проверка количества строк до и после join.
+//*********************************************************************************************************************************************************
+//	V1 - Call place in the format SheetNo:LineNo
+//	V2 - Join type (l-left, r-right, i-inner, o-outer, j-join(=left))
+//	V3 - Table name
+ 	V10 = If(V3 = 'LastTable',  TableName(NoOfTables()-1), V3);
+ 	V11 = 'TF:' & V4;																// Random line for log and test field name for outer join
+ 	V12 = If(V11 = SubField(VL, Chr(9), -1), 1, 0); 												// Bool - before or after join
+ 	V13 = NoOfRows('$(V10)'); 																		// Number of rows
+ 	IF V2 = 'o' and V12 and FieldNumber('$(V11)', '$(V10)') >= 0 THEN; 
+ 		[T99]: LOAD [$(V11)] Resident [$(V10)]; Inner Join LOAD 1 as [$(V11)] AutoGenerate 1; V13 = NoOfRows('T99'); DROP Table [T99]; DROP Field [$(V11)] From [$(V10)];
+ 	ENDIF; 
+ 	IF V2 = 'o' and not V12 THEN; Left Join ([$(V10)]) LOAD 1 as [$(V11)] AutoGenerate 1; ENDIF;
+ 	IF V12 THEN; VL = Replace(VL, V11, V13); ELSE;
+ 		VL = VL & Chr(13) & Date(Now(), 'YYYY.MM.DD') & Chr(9) & Time(Now(), 'hh:mm:ss') & Chr(9) & 'S54' & Chr(9) & V1 & Chr(9) & V13  & Chr(9) & V11;
+ 	ENDIF;
+ENDSUB
+SUB GenerateLoadScript(vPATH, vTableName,vRowNo,vFieldName,vShortName,vFieldType,vComment,vSynonym,vNewName,vNewNames,vNoOfDuplicates)
+//*********************************************************************************************************************************************************
+//	54.	Генерируем скрипт загрузки из QV файлов.
+//*********************************************************************************************************************************************************
+	FOR Each vPATH in FileList('$(vQvdPath)\*.qvd');
+		vNewNames 				= '|';
+		IF not WildMatch(vPATH, 'Enums', 'Metas') THEN
+			vTableName 			= Mid(SubField(vPATH, '\', -1), 1, Index(SubField(vPATH, '\', -1), '.', -1) -1);
+			vLoadScript			= vLoadScript & '[$(vTableName)]: ' &Chr(13)& 'LOAD ';
+			T1: LOAD Distinct FieldName, Comment FROM [$(vPATH)] (XmlSimple, Table is [QvdTableHeader/Fields/QvdFieldHeader]);
+			T2: LOAD *, Mid(FieldName, Index(FieldName, '.', 1) +1) as ShortName Resident T1 Where Len(Trim(FieldName)) > 0 Order by FieldName;
+			FOR vRowNo 			= 0 to NoOfRows('T2') -1
+				vFieldName		= Peek('FieldName', $(vRowNo));
+				vShortName		= Peek('ShortName', $(vRowNo));
+				vComment		= Peek('Comment', 	$(vRowNo));
+				vSynonym		= SubField(SubField(vComment, Chr(10), 2), ': ', 2); 
+				vFieldType		= SubField(SubField(vComment, Chr(10), 1), ': ', 2);
+				vComment		= If(SubStringCount(vFieldType, ',') > 0, 'Несколько типов ссылок', If(vShortName like '*.Представление', 'Строка', vFieldType)); 
+				vFieldType		= If(SubStringCount(vFieldType, ',') > 0, Replace(vFieldName, '.Ссылка', ''), vFieldType);
+				vFieldType		= If(vShortName like '*.ссылка', Mid(vFieldType, Index(vFieldType, '.', 1) +1) & '.Ссылка', vFieldType);
+				vNewName		= If(vShortName like '*.ссылка', vFieldType, If(Len(vSynonym) > 0 and not WildMatch(vShortName, '*.ссылка', '*.Тип', '*.ТипОбъекта', 'ссылка'), vSynonym, vShortName));
+				vNewName		= If(vNewName = 'Ссылка', vFieldName, vNewName);
+				vNewNames		= vNewNames  & vNewName & '|';
+				vNoOfDuplicates = SubstringCount(vNewNames, '|'& vNewName &'|');
+				vNewName		= If(vNoOfDuplicates = 1, vNewName, vNewName & ' '& vNoOfDuplicates);
+				vLoadScript 			= vLoadScript & If(vRowNo <> 0, chr(13)&chr(9)&' ') & '[$(vFieldName)] as [' & vNewName & If(vRowNo = NoOfRows('T2') -1, '] // ', '], // ') & vComment; 
+	//			vComments 		= vComments & Chr(13) & 'COMMENT Field '& vNewName &' With '''& vComment &''';';
+			NEXT; DROP Tables T1, T2;
+			vLoadScript 		= vLoadScript &chr(13)& 'FROM [$(vPATH)] (qvd);' &Chr(13)&Chr(13); 
+		ENDIF
+	NEXT
+ENDSUB
+Sub GetExcelSheets(vFile)
+//*********************************************************************************************************************************************************
+//	55.	Получаем листы книги excel
+//*********************************************************************************************************************************************************
+  vFileCopy = Replace(vFile, SubField(vFile, '.', -2), SubField(vFile, '.', -2) & ' (temp)');
+  EXECUTE cmd.exe /C copy "$(vFile)" "$(vFileCopy)";
+	SET ErrorMode = 0; // 0: Quiet, 1: Normal, 2: Verbose
+		ODBC CONNECT32 TO [Excel Files;DBQ=$(vFileCopy)];
+	IF ScriptError <> 0 THEN
+	    ODBC CONNECT64 TO [Excel Files;DBQ=$(vFileCopy)];
+	END IF;
+	ErrorMode = 1;
+  [TEMP]: SQLTables; DISCONNECT;
+  [XlsTables]: LOAD  Concat(Replace(PurgeChar(TABLE_NAME, '$'), '#', '.'), ', ')  as Table Resident [TEMP] Where not TABLE_NAME like '*_FilterDatabase'; 
+  vExcelSheets = Peek('Table'); DROP Tables [TEMP], [XlsTables];
+  EXECUTE cmd.exe /c del "$(vFileCopy)";
+End Sub
+SUB msTOpg_2(k,cast,hex,convert,dateAdd,s1,s2,s2,s4)
+//*********************************************************************************************************************************************************
+//	56.	MS to PG
+//*********************************************************************************************************************************************************
+
+	s1=; s2=; s3=; s4=;
+	s1 = vQuery; 																														// LOAD MsgBox('$(s1)') autogenerate 1; 
+	s2 = SubField(s1, 'From', 1);
+	For k = 1 to SubStringCount(s2, 'as [')
+		s3 = 'as ['& SubField(SubField(s2, 'as [', k+1), Chr(13), 1); 
+		s4 = s4 & 'f$(k) $(s3)' & Chr(13);
+		s1 = Replace(s1, s3, 'as f$(k)'& If(k < SubStringCount(s2, 'as ['), ',', '')) ;
+	Next
+	
+	set dateAdd = Case when DATE '1753-01-01' + (YearOffset.Ofset || ' years')::interval > $1 then $1 else $1  - (YearOffset.Ofset || ' years')::interval end;
+	set convert = CASE WHEN $1 = '1753-01-01 00:00:00' THEN '' ELSE TO_CHAR($(dateAdd), 'DD.MM.YYYY') END;
+	For k = 1 to SubStringCount(s2, 'Case when DateAdd')
+		s3 = 'Case when DateAdd'& SubField(SubField(s2, 'Case when DateAdd', k+1), ' end', 1) & ' end'; 
+		s5 = SubField(SubField(s3, ' > ', 2), ' ', 1);
+		s1 = Replace(Replace(s1, '$(vSql.Convert($(s5)))', '$(convert($(s5)))'), '$(vSql.DateAdd($(s5)))', '$(dateAdd($(s5)))') ;
+	Next
+	
+	set cast = ('x' || encode($1, 'hex'))::bit(32)::integer;
+	For k = 1 to SubStringCount(s2, 'cast(')  //'cast($(vField) as int)'   
+		s3 = 'cast('& SubField(SubField(s2, 'cast(', k+1), ' as [', 1); 
+		s5 = SubField(SubField(s3, 'cast(', 2), ' ', 1);
+		If s3 like '* int)' Then
+			s1 = Replace(s1, s3, '$(cast($(s5)))');
+		EndIf
+	Next
+
+	set hex =
+	CASE 
+        WHEN pg_typeof($1)::text = 'bytea' THEN UPPER(encode($1::bytea, 'hex'))
+        ELSE $1::varchar
+    END;
+	For k = 1 to SubStringCount(s2, Chr(13)) 
+		s3 = SubField(s2, Chr(13), k+1);
+		s5 = SubField(s3, ' as [');
+		If s5 like '*rref' Then
+			s1 = Replace(s1, s5, '$(hex($(s5)))');
+		EndIf
+	Next
+	
+	s1 = Replace(Replace(s1, '_Marked = 1', '_Marked'), '_Active = 1', '_Active');
+	
+	set ofset =
+	SQL
+	WITH _YearOffset AS (          -- «гарантированная» таблица Ofset
+		SELECT ofset
+		FROM   public._YearOffset
+		UNION ALL
+		SELECT 0 AS ofset          -- запасной 0
+		WHERE NOT EXISTS (SELECT 1 FROM public._YearOffset)
+	);
+
+	s4 = SubField(s1, Chr(13), 1) & Chr(13) & 'LOAD' & Chr(13) & Trim(Left(s4, Len(s4) -2)) & Chr(13) & ';'& Chr(13) & ofset & Chr(13) & SubField(Mid(s1, Index(s1, Chr(13), 1)), 'From', 1);
+	s4 = s4 & Replace(Replace(Replace(PurgeChar(Mid(s1, Index(s1, 'From')), '[]'), ',_YearOffset', 'CROSS JOIN _YearOffset as YearOffset'), 'with (nolock)', ''), 'From ', 'From public.');
+	
+	vQuery = s4; // LOAD MsgBox('$(s4)') autogenerate 1;
+ENDSUB
+SUB msTOpg(k,cast,hex,convert,dateAdd,s1,s2,s2,s4,s5,s6)
+
+	s1=; s2=; s3=; s4=; s5=; s6=;
+	s1 = vQuery; 																														// LOAD MsgBox('$(s1)') autogenerate 1; 
+	s2 = SubField(s1, 'From', 1);
+
+	set dateAdd = 
+	CASE 
+		WHEN DATE '1753-01-01' + (YearOffset.Ofset || ' years')::interval > $1 THEN $1 
+		ELSE $1  - (YearOffset.Ofset || ' years')::interval 
+	END;
+	set convert = 
+	CASE 
+		WHEN $1 = '1753-01-01 00:00:00' THEN '' 
+		ELSE TO_CHAR($(dateAdd), 'DD.MM.YYYY') 
+	END;
+	set cast 	= ('x' || encode($1, 'hex'))::bit(32)::integer;
+	set hex 	=
+	CASE 
+		WHEN pg_typeof($1)::text = 'bytea' THEN UPPER(encode($1::bytea, 'hex'))
+		ELSE $1::varchar
+	END;
+	
+	set datePg = TO_CHAR(_Date_Time - (YearOffset.Ofset || ' years')::interval, 'DD.MM.YYYY');
+	
+	For k = 1 to SubStringCount(s2, ' as [')
+		s3 = ' as ['& SubField(SubField(s2, 'as [', k+1), Chr(13), 1); 																	// Output
+		s4 = Trim(SubField(SubField(s2, ' as [', k), Chr(13), 2));																		// Input
+
+		s5 = s5 & 'f$(k) $(s3)' & Chr(13);																								// Собираем load
+		s1 = Replace(s1, s3, ' as f$(k)'& If(k < SubStringCount(s2, 'as ['), ',', ''));													// Меняем Output на f1, f2, f3...
+
+		If 		 s4 like '*Case when DateAdd*' 	Then
+			s6 = SubField(SubField(SubField(SubField(s4, 'Case when DateAdd', 2), ' end', 1), ' > ', 2), ' ', 1);						// DateField
+			s1 = Replace(Replace(s1, '$(vSql.Convert($(s6)))', '$(convert($(s6)))'), '$(vSql.DateAdd($(s6)))', '$(dateAdd($(s6)))') ;
+		ElseIf 	 s4 like '*Cast(*'				Then
+			s6 = SubField(SubField(s4, 'Cast(', 2), ' as int)', 1);																		// TTRef as int
+			s1 = Replace(s1, '$(vSql.Cast($(s6)))', '$(cast($(s6)))');
+		ElseIf 	 s4 like '*rref'				Then
+			s1 = Replace(s1, s4 & ' as ', '$(hex($(s4))) as ');																			// RRef hex		
+		Else 
+			s1 = Replace(s1, '$(vSql.Convert(_Date_Time))', '$(datePg(_Date_Time))');
+		EndIf
+	Next
+	
+	s1 = Replace(Replace(Replace(Replace(s1, '_Marked = 1', '_Marked'), '_Active = 1', '_Active'), ' '' + ', ' '' || '), ' + '' ', ' || '' ');
+	
+	set ofset =
+	SQL
+	WITH _YearOffset AS (          -- «гарантированная» таблица Ofset
+		SELECT ofset
+		FROM   public._YearOffset
+		UNION ALL
+		SELECT 0 AS ofset          -- запасной 0
+		WHERE NOT EXISTS (SELECT 1 FROM public._YearOffset)
+	);
+
+	s5 = SubField(s1, Chr(13), 1) & Chr(13) & 'LOAD' & Chr(13) & Trim(Left(s5, Len(s5) -2)) & Chr(13) & ';'& Chr(13) & ofset & Chr(13) & SubField(Mid(s1, Index(s1, Chr(13), 1)), 'From', 1);
+	s5 = s5 & Replace(Replace(Replace(PurgeChar(Mid(s1, Index(s1, 'From')), '[]'), ',_YearOffset', 'CROSS JOIN _YearOffset as YearOffset'), 'with (nolock)', ''), 'From ', 'From public.');
+	
+	vQuery = s5; // LOAD MsgBox('$(s5)') autogenerate 1;
+ENDSUB
+SUB SetParam(vParam, vValue)
+//*********************************************************************************************************************************************************
+//	98.	Меняем параметр в vParams.
+//*********************************************************************************************************************************************************
+	vParams = Trim(Replace(Chr(10) & vParams, Chr(10) & '$(vParam)='& $(($(vParam))), Chr(10) & '$(vParam)=$(vValue)'));
+ENDSUB
+SUB  Exit(VZ)
+//*********************************************************************************************************************************************************
+//	99.	Завершение загрузки - удаление временных объектов и выход из скрипта.
+//*********************************************************************************************************************************************************
+
+	// Cохраняем дамми файл для определения дефолтного обновления и запускаем таски на 14 севрере
+	IF ( $((Action)) = 'Default' or ( $((Action)) = 'All routines' and Match($((Name)), 'XLS', 'RIG') ) ) and $((Period)) = 'Default' and $((Select)) = 'Default' THEN
+
+		[ ]: LOAD ReloadTime() as ReloadTime AutoGenerate 1; Store [ ] into [$(vQvdPath)\# Default.qvd] (qvd); DROP Table [ ];
+
+		vTask = DocumentName(); EXECUTE cmd.exe /c ""\\172.16.245.8/QlikView/RES/EXE/QMSEDX/QMSEDX_CommandLine/QMSEDX.exe" -qms="http://172.16.245.14:4799/QMS/Service" -task="Reload of $(vTask)"";
+		
+/* 		IF $((Name)) = 'CNT' THEN // Стартуем sales analysis на qs
+			EXECUTE  "C:\Program Files\Python310\python.exe" "\\172.16.245.8\QlikView\PY\qsTask.py" "Sales Analysis";
+		ELSEIF $((Name)) = 'XLS' and Hour(Now()) < 8 and Hour(Now()) > 6 THEN
+			EXECUTE  "C:\Program Files\Python310\python.exe" "\\172.16.245.8\QlikView\PY\qsTask.py" "Vispera KAZ"; SLEEP 2000;
+			EXECUTE  "C:\Program Files\Python310\python.exe" "\\172.16.245.8\QlikView\PY\qsTask.py" "Vispera KGZ";
+		ENDIF */
+
+		// IF $((Name)) = 'CNT' and Hour(Now()) < 12 and Hour(Now()) > 10 THEN // Стартуем sales analysis на qs
+			// [ ]: LOAD ReloadTime() as ReloadTime AutoGenerate 1; Store [ ] into [$(vQvdPath)\# 10-00.qvd] (qvd); DROP Table [ ];
+		// ELSE
+			// [ ]: LOAD ID_FORM, If(ID_FORM = '$(vID_FORM)', Text(Now()), DATE) as DATE										// Пишем в лог дефолтное время обновления 
+						// FROM [//172.16.245.8/QlikView/QVW/# Default.txt] (txt, utf8, embedded labels, delimiter is '\t', msq);
+			// Store T7 	into [//172.16.245.8/QlikView/QVW/# Default.txt] (txt, delimiter is '\t'); Drop Table T7; 			
+			
+		// ENDIF
+	ENDIF 
+
+//	IF $((Action)) <> 'Keep load' and $((Action)) <> 'Full Load' THEN;  DROP Table Enums; ENDIF; // Удаляем таблицу перечислений и грузим Select1, как InputField
+	IF not WildMatch($((Action)), '* load*') THEN;  
+		DROP Table Enums; 
+		Rename Table Metas to [ ]; Rename Field Select1 to [Default]; INPUTFIELD Select1; NoConcatenate Metas: LOAD Distinct *, [Default] as Select1 Resident [ ]; Drop Table [ ];
+	ENDIF; // Удаляем таблицу перечислений и грузим Select1, как InputField
+
+	vTEST = VL; // Что-то экспериментировал с корректировкой кода
+
+	CALL NormalizeScript('');
+		vScript = vSelectScript; //vInput
+			IF $((Action)) = 'Get routines' THEN; vScript = vLoadScript; ENDIF
+	
+//	V2 = ''; FOR V1 = 1 to 15; V2 = V2 & 'SubField(F1, Chr(9), '& V1 &') as [LOG'& V1 &'],'; NEXT; V2 = Trim(Left(V2, Len(V2) -1)); LOG: LOAD $(V2) Where Len(F1) > 0; LOAD SubField('$(vLog)', Chr(13)) as F1 AutoGenerate 1;
+	Logs: LOAD * Where Len(F1) > 0; LOAD SubField('$(VL)', 		Chr(13)) as F1 AutoGenerate 1;
+	Logs: LOAD * Where Len(F1) > 0; LOAD SubField('$(vLog)', 	Chr(13)) as F1 AutoGenerate 1;
+	VZ = ''; FOR V1 = 65 to 90; VZ = VZ & 'V' & Chr(V1) & ','; NEXT;  VZ =Left(VZ, Len(VZ) - 1);
+
+	// Чистка мусора после загрузки
+	vDropVars = $((DropVars)); CALL DropVars( '$(vDropVars),vDropVars' ); 
+	CALL DropVars('VA,VZ,$(VA),$(VZ),vSql.Cast,vSql.DateAdd,vSql.Convert,vQuery,vMaxDate,vMinDate,vField_1,vField_2,vField_3,vYear,vString_1,vString_2,vSuffix,vChar,vExclusion,vConnect,vCheckTable,vGetDateField,vCounter,vDateStart,vDateEnd,vDaySplitDate,vMetaData,vNotEmpty,vGpsConvert,vGpsDistance,vLoadType,vEnumeData,vTrace,vSplit.FileCheck,vFileSplitDate,vTrace,vCounter,vIterNo,vString,vHeaders,vPickValue,vWhereDate,vSubField,vCounter'); 
+	CALL DropVars('vTask,vSplitPeriod,vLog,vSplitString,vList,vDateStart,vDateEnd,vSelectSplit,vTotalSplit,vLoadType,vPlanSplitDate,vDaySplitDate,vLoadFlag,vNotEmpty,vGpsConvert,vGpsDistance,vCheckTable,vGetDateField,vTrace,vQvdExists,vFileExists,vPartCheck');
+	CALL DropVars('vCheck,vFactSplitDate,vLoadMode,vScriptPath,vGitPath'); 	// Загрузочные
+	CALL DropVars('vRoutines,vRoutine,vAllRoutines,vSqlTables,vSqlTable'); 	// Execute
+	CALL DropVars(',vQvdPath,vSelect,vLoop,vExcelSheets'); 					// Global
+
+
+SET	v 	= Pick(WildMatch('$1', 'get*', 'set*', 'sel*'),
+				Trim(SubField(SubField(Chr(10) & vParams & Chr(10), Chr(10) & '$2=', 2), Chr(10), 1)),
+					Trim(Replace(Chr(10) & vParams, Chr(10) & '$2=' & SubField(SubField(Chr(10) & vParams & Chr(10), Chr(10) & '$2=', 2), Chr(10), 1), Chr(10) & '$2=$3')),
+						If(GetSelectedCount([$2]) > 0 and Index('|' & Concat([$2], '|') & '|', '|$3|') > 0, 1, 0),
+			);
+	
+	
+//	IF not Match($((Action)), 'Keep load', 'Full Load') THEN; Rename Table Metas to [ ]; Rename Field Select1 to [Default]; INPUTFIELD Select1; NoConcatenate Metas: LOAD *, [Default] as Select1 Resident [ ]; Drop Table [ ]; //Drop Field [ ];
+//	DROP Table Enums; 	
+	TAG Fields $Action, $Select, $Period, $Routine With $hidden;
+	Set ErrorMode = 0;  // Добавлен для исключения ошибки при наличии последующего скрипта.		
+	EXIT SCRIPT; 
+ENDSUB
+SUB Copy(vFileIn,vFileOut,vQvdRemotePath);								TRACE 	Копирование файлов 							*******************************************************************************************************************************;
+//*********************************************************************************************************************************************************
+//	100.	Копирование файлов на удаленный сервер.
+//*********************************************************************************************************************************************************
+	vQvdRemotePath = Replace(vQvdPath, '\\172.16.245.8\QlikView\', '\\172.16.245.6\Qlik Sense\');
+	FOR Each vFileOut in FileList('$(vQvdRemotePath)\*'); 
+		vFileIn = '$(vQvdPath)\' & Subfield(vFileOut, '\', -1); 
+	  	IF FileTime('$(vFileIn)') > FileTime('$(vFileOut)') THEN; EXECUTE cmd.exe /C copy "$(vFileIn)" "$(vFileOut)"; ENDIF;
+	NEXT
+ENDSUB
+
+/* IF SubStringCount(vParams, 'TestLoad=1') > 0 THEN
+	$(vCommonScriptV1)
+ENDIF  */
