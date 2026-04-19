@@ -24,13 +24,13 @@ EndIf
 sub calendar(begdate, enddate);
 	[Календарь]:
 	LOAD 1																								as [Календарь],
-		Year(Date) 																					as [Год],
-		Year(Date) &' '& Dual(Month(Date), Month(Date))												as [Год Месяц],
+		Year(Date) 																						as [Год],
+		Year(Date) &' '& Dual(Month(Date), Month(Date))													as [Год Месяц],
 		Dual(Month(Date), 	Month(Date)) 																as [Месяц],
 		Num(Month(Date)) 																				as [МесяцНомер],
 		Year(Date) & ' ' & Num(Week(Date), '00')														as [Год Неделя],
 		Ceil((Day(Date) + WeekDay(MonthStart(Date)) - 1) / 7) & ' w'									as [Неделя],
-		Dual(WeekDay(Date), WeekDay(Date)) 															as [День недели],
+		Dual(WeekDay(Date), WeekDay(Date)) 																as [День недели],
 		Day(Date) 																						as [Число],
 		Date																							as [Дата];
 	LOAD Date('$(begdate)' + IterNo() - 1) as [Date] AutoGenerate 1 While Date('$(begdate)' + IterNo() - 1) < YearEnd(AddMonths(Today(), 3)); 
@@ -166,7 +166,7 @@ mode =  Trim(SubField(SubField(Chr(10) & vParams & Chr(10), Chr(10) & 'LoadMode=
 path = '//172.16.245.8/qlikview/git/rgb/qvs/' & Replace(DocumentName(), '.qvw', '.qvs'); 
 
 If mode = 'External' and Len(FileSize('$(path)')) > 0 THEN; 
-	$(must_include=$(path)); 
+	$(include=$(path)); 
 	mode=; path=;
 	exit script
 EndIf
