@@ -155,8 +155,8 @@ sub execute
 
 	For Each Routine in $(Routines); call $(Routine); Next	
 	
-	call drop_e('i,period,Params,Routine,Routines,mode,path'); 
-	
+	call drop_e('i,period,Params,Routine,Routines,mode,path,url,breaker'); 
+
 	n = 1;
 
 	exit script
