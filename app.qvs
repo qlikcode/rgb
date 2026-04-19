@@ -21,7 +21,7 @@ If 1 Then
 	NullAsValue *; Set NullValue = '';
 EndIf
 
-sub calendar(begdate, enddate);
+sub calendar_e(begdate, enddate);
 	[Календарь]:
 	LOAD 1																								as [Календарь],
 		Year(Date) 																						as [Год],
@@ -36,7 +36,7 @@ sub calendar(begdate, enddate);
 	LOAD Date('$(begdate)' + IterNo() - 1) as [Date] AutoGenerate 1 While Date('$(begdate)' + IterNo() - 1) < YearEnd(AddMonths(Today(), 3)); 
 endsub
 
-sub drop(vars);
+sub drop_e(vars);
 	vars = Chr(39) & Replace(vars, ',', Chr(39) & ',' & Chr(39)) & Chr(39); FOR Each var in $(vars); LET [$(var)] = Null(); NEXT; LET var = Null(); 
 endsub
 
@@ -151,11 +151,11 @@ sub execute
 	
 	period		= Trim(SubField(Params, ' , ', 1)); 
 	IF not IsNum(Num(Date(period))) THEN; period = $(period); ENDIF 
-	Routines 	= If(Date(period), '''calendar(''''$(period)'''')'', ', '') & ''''& Replace(PurgeChar(Routines, ' '), ',', ''',''') &'''';
+	Routines 	= If(Date(period), '''calendar_e(''''$(period)'''')'', ', '') & ''''& Replace(PurgeChar(Routines, ' '), ',', ''',''') &'''';
 
 	For Each Routine in $(Routines); call $(Routine); Next	
 	
-	call drop('i,period,Params,Routine,Routines,mode,path'); 
+	call drop_e('i,period,Params,Routine,Routines,mode,path'); 
 	
 	n = 1;
 
