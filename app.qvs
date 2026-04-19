@@ -1,5 +1,27 @@
 
+SUB execute
+	
+	n=;
+	call vars
+	call e
+	
+	call process_e
+	
+	For Each i in  'Params', 'Period', 'Routines'; 
+		Let [$(i)] 	= Lookup('Variables.Definition', 'Variables.Name', '$(i)', 'Variables');
+	Next; 
+	
+	Period		= If(Len(Period) > 0, Period, Trim(SubField(Params, ' , ', 1))); 
+	IF not IsNum(Num(Date(Period))) THEN; Period = $(Period); ENDIF 
+	Routines 	= If(Date(Period), '''calendar(''''$(Period)'''')'', ', '') & ''''& Replace(PurgeChar(Routines, ' '), ',', ''',''') &'''';
 
+	For Each Routine in $(Routines); call $(Routine); Next	
+	
+	call dropvars('i,Period,Params,Routine,Routines'); //'calendar(''$(Period)'')',
+	
+	n = 1;
+	Exit Script
+ENDSUB
 
 
 
