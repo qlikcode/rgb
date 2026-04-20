@@ -163,7 +163,7 @@ sub execute
 endsub
 
 call e_drop('i,period,Params,Routine,Routines,mode,path,url,breaker,success,attempts,mode,path,i'); 
-url=;
+
 mode =  Trim(SubField(SubField(Chr(10) & vParams & Chr(10), Chr(10) & 'LoadMode=', 2), Chr(10), 1)); 
 path = '//172.16.245.8/qlikview/git/rgb/qvs/' & Replace(DocumentName(), '.qvw', '.qvs'); 
 
