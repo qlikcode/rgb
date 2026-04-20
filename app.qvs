@@ -149,13 +149,27 @@ sub execute
 		Let [$(i)] 	= Lookup('Variables.Definition', 'Variables.Name', '$(i)', 'Variables');
 	Next; 
 	
-	period		= Trim(SubField(Params, ' , ', 1)); 
+	period		= Trim(SubField(Params, ' , ', 1));
+	access		= Trim(SubField(Params, ' , ', 2));
+	store		= Trim(SubField(Params, ' , ', 5)); 
 	IF not IsNum(Num(Date(period))) THEN; period = $(period); ENDIF 
 	Routines 	= If(Date(period), '''e_calendar(''''$(period)'''')'', ', '') & ''''& Replace(PurgeChar(Routines, ' '), ',', ''',''') &'''';
 
 	For Each Routine in $(Routines); call $(Routine); Next	
 	
-	call e_drop('i,period,Params,Routine,Routines,mode,path,url,breaker,success,attempts'); 
+	If store = 1 Then
+		app = Left(DocumentName(), Len(DocumentName()) - 4);
+		FOR vCount = 0 to NoOfTables()-1
+			LET vTableName = TableName($(vCount));
+			STORE [$(vTableName)] INTO [\\172.16.245.8\QlikView\QVD\REP\$(app)\$(vTableName).qvd] (qvd);
+		NEXT; 
+	EndIf
+
+	If access = 1 Then
+		Section Access; LOAD [ACCESS], [USERID], Trim([CITY]) as [CITY] FROM [//172.16.245.8/QlikView/QVD/XLS/SectionAccess.qvd] (qvd); Section Application;
+	EndIf
+	
+	call e_drop('i,period,access,app,store,Params,Routine,Routines,mode,path,url,breaker,success,attempts'); 
 
 	n = 1;
 
