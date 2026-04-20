@@ -155,20 +155,22 @@ sub execute
 
 	For Each Routine in $(Routines); call $(Routine); Next	
 	
-	call drop_e('i,period,Params,Routine,Routines,mode,path,url,breaker'); 
+	call drop_e('i,period,Params,Routine,Routines,mode,path,url,breaker,success,attempts'); 
 
 	n = 1;
 
 	exit script
 endsub
 
+call drop_e('i,period,Params,Routine,Routines,mode,path,url,breaker,success,attempts,mode,path,i'); 
+
 mode =  Trim(SubField(SubField(Chr(10) & vParams & Chr(10), Chr(10) & 'LoadMode=', 2), Chr(10), 1)); 
 path = '//172.16.245.8/qlikview/git/rgb/qvs/' & Replace(DocumentName(), '.qvw', '.qvs'); 
 
 If mode = 'External' and Len(FileSize('$(path)')) > 0 THEN; 
 	$(include=$(path)); 
-	mode=; path=;
+	call drop_e('mode,path'); 
 	exit script
 EndIf
 
-mode=; path=; 
+call drop_e('mode,path');  
