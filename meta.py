@@ -7,41 +7,57 @@ import sys
 import os
 import re
 import io
+from typing import Tuple
 
+def setup_environment() -> Tuple[str, str, str, str]:
+    """
+    Настраивает пути и параметры подключения к БД.
+    Возвращает: (csv_path, db_name, db_type, conn_str)
+    """
+    if len(sys.argv) < 6:
+        print("Ошибка: недостаточно аргументов!")
+        print("Использование: python meta.py <csv_path> <server> <db_name> <user> <password> <db_type>")
+        sys.exit(1)
 
-# Путь для выходных файлов
-csv_path                    = args[0]
-db_name                     = args[2]
-db_type                     = args[5]
+    args = sys.argv[1:]          # args[0] = csv_path, args[1] = server и т.д.
 
-if not os.path.exists(csv_path):
-    try:
-        os.makedirs(csv_path)  # Создаём директорию (включая все недостающие родительские)
-        print(f"Директория {csv_path} успешно создана")
-    except OSError as e:
-        print(f"Ошибка при создании директории: {e}")
-else:
-    print(f"Директория {csv_path} уже существует")
-    
-# Параметры подключения
-if db_type == 'PG':
-    server_with_port = args[1] if ':' in args[1] else f"{args[1]}:5432"
-    conn_str = (
-        f"DRIVER={{PostgreSQL Unicode}};"  # Драйвер для PostgreSQL
-        f"SERVER={args[1]};"      # Адрес сервера с портом, если не указан
-        f"DATABASE={args[2]};"
-        f"UID={args[3]};"
-        f"PWD={args[4]}"
-    )
-else:
-    conn_str = (
-        f"DRIVER={{ODBC Driver 17 for SQL Server}};"
-        f"SERVER={args[1]};"
-        f"DATABASE={args[2]};"
-        f"UID={args[3]};"
-        f"PWD={args[4]}"
-)
+    csv_path = args[0]
+    db_name  = args[2]
+    db_type  = args[5].upper()   # на всякий случай приводим к верхнему регистру
 
+    # Создаём директорию, если её нет
+    if not os.path.exists(csv_path):
+        try:
+            os.makedirs(csv_path, exist_ok=True)
+            print(f"Директория {csv_path} успешно создана")
+        except OSError as e:
+            print(f"Ошибка при создании директории {csv_path}: {e}")
+            sys.exit(1)
+    else:
+        print(f"Директория {csv_path} уже существует")
+
+    # Формируем строку подключения
+    if db_type == 'PG':
+        server = args[1]
+        if ':' not in server:
+            server += ':5432'
+        conn_str = (
+            f"DRIVER={{PostgreSQL Unicode}};"
+            f"SERVER={server};"
+            f"DATABASE={db_name};"
+            f"UID={args[3]};"
+            f"PWD={args[4]}"
+        )
+    else:  # MSSQL по умолчанию
+        conn_str = (
+            f"DRIVER={{ODBC Driver 17 for SQL Server}};"
+            f"SERVER={args[1]};"
+            f"DATABASE={db_name};"
+            f"UID={args[3]};"
+            f"PWD={args[4]}"
+        )
+
+    return csv_path, db_name, db_type, conn_str
 
 def parse_DBSchema(cursor):  # Теперь принимает cursor
 
@@ -1267,6 +1283,9 @@ def save_to_csv(data, df_name="Данные"):
     return True
 # --- Основной блок выполнения ---
 if __name__ == "__main__":
+    
+    csv_path, db_name, db_type, conn_str = setup_environment()
+
     try:
         print("🚀 Начинаем обработку данных из 1С и физической схемы БД...")
 
