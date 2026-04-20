@@ -136,7 +136,7 @@ sub e_drop(vars);
 	vars = Chr(39) & Replace(vars, ',', Chr(39) & ',' & Chr(39)) & Chr(39); FOR Each var in $(vars); LET [$(var)] = Null(); NEXT; LET var = Null(); 
 endsub
 
-sub execute
+sub e_execute
 	
 	n=;
 	call e
@@ -184,6 +184,7 @@ path = '//172.16.245.8/qlikview/git/rgb/qvs/' & Replace(DocumentName(), '.qvw', 
 If mode = 'External' and Len(FileSize('$(path)')) > 0 THEN; 
 	$(include=$(path)); 
 	call e_drop('mode,path'); 
+	call e_execute
 	exit script
 EndIf
 
