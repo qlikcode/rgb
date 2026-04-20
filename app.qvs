@@ -143,7 +143,7 @@ sub execute
 	n=;
 	call e
 	
-	call process_e
+	call e_process
 	
 	For Each i in  'Params', 'Routines'; 
 		Let [$(i)] 	= Lookup('Variables.Definition', 'Variables.Name', '$(i)', 'Variables');
@@ -151,7 +151,7 @@ sub execute
 	
 	period		= Trim(SubField(Params, ' , ', 1)); 
 	IF not IsNum(Num(Date(period))) THEN; period = $(period); ENDIF 
-	Routines 	= If(Date(period), '''calendar_e(''''$(period)'''')'', ', '') & ''''& Replace(PurgeChar(Routines, ' '), ',', ''',''') &'''';
+	Routines 	= If(Date(period), '''e_calendar(''''$(period)'''')'', ', '') & ''''& Replace(PurgeChar(Routines, ' '), ',', ''',''') &'''';
 
 	For Each Routine in $(Routines); call $(Routine); Next	
 	
