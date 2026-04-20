@@ -21,26 +21,7 @@ If 1 Then
 	NullAsValue *; Set NullValue = '';
 EndIf
 
-sub calendar_e(begdate, enddate);
-	[Календарь]:
-	LOAD 1																								as [Календарь],
-		Year(Date) 																						as [Год],
-		Year(Date) &' '& Dual(Month(Date), Month(Date))													as [Год Месяц],
-		Dual(Month(Date), 	Month(Date)) 																as [Месяц],
-		Num(Month(Date)) 																				as [МесяцНомер],
-		Year(Date) & ' ' & Num(Week(Date), '00')														as [Год Неделя],
-		Ceil((Day(Date) + WeekDay(MonthStart(Date)) - 1) / 7) & ' w'									as [Неделя],
-		Dual(WeekDay(Date), WeekDay(Date)) 																as [День недели],
-		Day(Date) 																						as [Число],
-		Date																							as [Дата];
-	LOAD Date('$(begdate)' + IterNo() - 1) as [Date] AutoGenerate 1 While Date('$(begdate)' + IterNo() - 1) < YearEnd(AddMonths(Today(), 3)); 
-endsub
-
-sub drop_e(vars);
-	vars = Chr(39) & Replace(vars, ',', Chr(39) & ',' & Chr(39)) & Chr(39); FOR Each var in $(vars); LET [$(var)] = Null(); NEXT; LET var = Null(); 
-endsub
-
-sub process_e;
+sub e_process;
 
 	set e = $(e) 
 	>>>>>>>>>>>>>>>>>>>>>>>>>>> /get/
@@ -138,6 +119,25 @@ sub process_e;
 	Next; i=; j=;
 endsub
 
+sub e_calendar(begdate, enddate);
+	[Календарь]:
+	LOAD 1																								as [Календарь],
+		Year(Date) 																						as [Год],
+		Year(Date) &' '& Dual(Month(Date), Month(Date))													as [Год Месяц],
+		Dual(Month(Date), 	Month(Date)) 																as [Месяц],
+		Num(Month(Date)) 																				as [МесяцНомер],
+		Year(Date) & ' ' & Num(Week(Date), '00')														as [Год Неделя],
+		Ceil((Day(Date) + WeekDay(MonthStart(Date)) - 1) / 7) & ' w'									as [Неделя],
+		Dual(WeekDay(Date), WeekDay(Date)) 																as [День недели],
+		Day(Date) 																						as [Число],
+		Date																							as [Дата];
+	LOAD Date('$(begdate)' + IterNo() - 1) as [Date] AutoGenerate 1 While Date('$(begdate)' + IterNo() - 1) < YearEnd(AddMonths(Today(), 3)); 
+endsub
+
+sub e_drop(vars);
+	vars = Chr(39) & Replace(vars, ',', Chr(39) & ',' & Chr(39)) & Chr(39); FOR Each var in $(vars); LET [$(var)] = Null(); NEXT; LET var = Null(); 
+endsub
+
 sub execute
 	
 	n=;
@@ -155,22 +155,22 @@ sub execute
 
 	For Each Routine in $(Routines); call $(Routine); Next	
 	
-	call drop_e('i,period,Params,Routine,Routines,mode,path,url,breaker,success,attempts'); 
+	call e_drop('i,period,Params,Routine,Routines,mode,path,url,breaker,success,attempts'); 
 
 	n = 1;
 
 	exit script
 endsub
 
-call drop_e('i,period,Params,Routine,Routines,mode,path,url,breaker,success,attempts,mode,path,i'); 
+call e_drop('i,period,Params,Routine,Routines,mode,path,url,breaker,success,attempts,mode,path,i'); 
 url=;
 mode =  Trim(SubField(SubField(Chr(10) & vParams & Chr(10), Chr(10) & 'LoadMode=', 2), Chr(10), 1)); 
 path = '//172.16.245.8/qlikview/git/rgb/qvs/' & Replace(DocumentName(), '.qvw', '.qvs'); 
 
 If mode = 'External' and Len(FileSize('$(path)')) > 0 THEN; 
 	$(include=$(path)); 
-	call drop_e('mode,path'); 
+	call e_drop('mode,path'); 
 	exit script
 EndIf
 
-call drop_e('mode,path');  
+call e_drop('mode,path');  
