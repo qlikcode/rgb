@@ -503,8 +503,6 @@ def merge_DBSchema(parsed_df, physical_df):
     print("🎉 Объединение завершено успешно!")
     return merged_df
 
-
-
 def fetch_DBNmes(cursor):
     if db_type == 'PG':
         cursor.execute("SELECT \"binarydata\" AS \"BinaryData\" FROM public.\"params\" WHERE \"filename\" = 'DBNames'")  
@@ -630,7 +628,6 @@ def process_Enums(dbnames_df, config_df):
     enum_df = pd.DataFrame(exploded_rows)
     save_to_csv(enum_df, "Enums")
     return enum_df
-
 
 def process_Tables(dbnames, config, dbschema):
     slovar = """
@@ -1172,7 +1169,7 @@ def process_Fields(dbnames,config,schema,tables):
                 .replace('ТипОбъекта', 'Тип объекта')
 
         elif subfield(row['ИмяПоля'], '.', 2) in ['Оборот','ОборотДт','ОборотКт']:
-#            syn = f"{syn} ({subfield(row['ИмяПоля'], '.', 2)})" \
+    #            syn = f"{syn} ({subfield(row['ИмяПоля'], '.', 2)})" \
             syn = f"{syn} {subfield(row['ИмяПоля'], '.', 2)}" \
                .replace('Дт', ' Дт') \
                 .replace('Кт', ' Кт') \
