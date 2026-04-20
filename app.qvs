@@ -59,8 +59,6 @@ sub e_process;
 		ENDIF; 
 	Next; 
 	
-	Set ErrorMode=0; Drop Field [ ]; Set ErrorMode=1;
-	
 	// ====================== Переменные
 	fields 	= Mid(fields, 2); 
 	k 		= KeepChar('$(fields)', '1234567890,');
@@ -168,13 +166,15 @@ sub execute
 	If access = 1 Then
 		Section Access; LOAD [ACCESS], [USERID], Trim([CITY]) as [CITY] FROM [//172.16.245.8/QlikView/QVD/XLS/SectionAccess.qvd] (qvd); Section Application;
 	EndIf
-	
+
 	call e_drop('i,period,access,app,store,Params,Routine,Routines,mode,path,url,breaker,success,attempts'); 
 
 	n = 1;
 
 	exit script
 endsub
+
+Set ErrorMode=0; Drop Field [ ]; Set ErrorMode=1;
 
 call e_drop('i,period,Params,Routine,Routines,mode,path,url,breaker,success,attempts,mode,path,i'); 
 
