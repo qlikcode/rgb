@@ -181,11 +181,15 @@ call e_drop('i,period,Params,Routine,Routines,mode,path,url,breaker,success,atte
 mode =  Trim(SubField(SubField(Chr(10) & vParams & Chr(10), Chr(10) & 'LoadMode=', 2), Chr(10), 1)); 
 path = '//172.16.245.8/qlikview/git/rgb/qvs/' & Replace(DocumentName(), '.qvw', '.qvs'); 
 
-If mode = 'External' and Len(FileSize('$(path)')) > 0 THEN; 
-	$(include=$(path)); 
-	call e_drop('mode,path'); 
-	call execute
-	exit script
+If mode = 'External' Then; 
+	If Len(FileSize('$(path)')) > 0 Then
+		$(include=$(path)); 
+		call e_drop('mode,path'); 
+		call execute
+		exit script
+	Else
+		Load * From [ ];
+	EndIf
 EndIf
 
 call e_drop('mode,path');  
