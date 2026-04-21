@@ -132,26 +132,17 @@ sub e_calendar(beg, end);
 	LOAD Date('$(beg)' + IterNo() - 1) as [Date] AutoGenerate 1 While Date('$(beg)' + IterNo() - 1) < YearEnd(AddMonths(Today(), 3)); 
 endsub
 
-sub drop(vars);
-	vars = Chr(39) & Replace(vars, ',', Chr(39) & ',' & Chr(39)) & Chr(39); FOR Each var in $(vars); LET [$(var)] = Null(); NEXT; LET var = Null(); 
-endsub
-
 sub e_drop(vars);
 
-//	for each var in 'i', 'p', 'period', 'access', 'app', 'store', 'Params', 'Routine', 'Routines', 'mode', 'path', 'url', 'breaker', 'success', 'attempts'
-//		let [$(var)] =; 
-//	next; var =; 
-
 	vars = Chr(39) & Replace(vars, ',', Chr(39) & ',' & Chr(39)) & Chr(39); FOR Each var in $(vars); LET [$(var)] = Null(); NEXT; LET var = Null(); 
-
 endsub
 
-sub execute
+sub execute(n, period, access, store, Routines, Routine, app, vCount, vTableName)
 	
 	n=;
 	call e
 	
-	call e_process('1')
+	call e_process(x)
 	
 	For Each i in  'Params', 'Routines'; 
 		Let [$(i)] 	= Lookup('Variables.Definition', 'Variables.Name', '$(i)', 'Variables');
@@ -177,40 +168,34 @@ sub execute
 		Section Access; LOAD [ACCESS], [USERID], Trim([CITY]) as [CITY] FROM [//172.16.245.8/QlikView/QVD/XLS/SectionAccess.qvd] (qvd); Section Application;
 	EndIf
 
-	//call e_drop;//('i,period,access,app,store,Params,Routine,Routines,mode,path,url,breaker,success,attempts'); 
-
 	n = 1;
 
 	exit script
 endsub
-
-Set ErrorMode=0; Drop Field [ ]; Set ErrorMode=1;
 			 
-call e_drop('i,period,Params,Routine,Routines,mode,path,url,breaker,success,attempts,mode,path,i'); 
+sub e_script(x, mode, path, drop)
 
-''		= 'Trim(SubField(SubField(Chr(10) & vParams & Chr(10), Chr(10) & ''$1'' & ''='', 2), Chr(10), 1))';
-//mode 	=  Trim(SubField(SubField(Chr(10) & vParams & Chr(10), Chr(10) & 'LoadMode=', 2), Chr(10), 1)); 
-path 	= '//172.16.245.8/qlikview/git/rgb/qvs/' & Replace(DocumentName(), '.qvw', '.qvs'); 
-drop	= $((DropVars));
+	mode	= Trim(SubField(SubField(Chr(10) & vParams & Chr(10), Chr(10) & 'LoadMode=', 2), Chr(10), 1));
+	path 	= '//172.16.245.8/qlikview/git/rgb/qvs/' & Replace(DocumentName(), '.qvw', '.qvs'); 
+	drop	= $((DropVars));
 
-If $((LoadMode)) = 'External' Then;
+	If $((LoadMode)) = 'External' Then;
 
-	If Len(FileSize('$(path)')) > 0 Then
+		If Len(FileSize('$(path)')) > 0 Then
 
-		$(include=$(path)); 
+			$(include=$(path)); 
 
-		call execute
-		
-		
-		call e_drop(',drop,path'); 
-	
+			call execute(x)
+			
+			//call e_drop(',drop,pathi,period,Params,Routine,Routines,mode,path,url,breaker,success,attempts,mode,path,i'); 
 
+			Set ErrorMode=0; Drop Field [ ]; Set ErrorMode=1;
 
-
-		exit script
-	Else
-		Load * From [ ];
+			exit script
+		Else
+			Load * From [ ];
+		EndIf
 	EndIf
-EndIf
+endsub
 
-call e_drop(',drop,path');  
+call e_script(x)
