@@ -147,9 +147,9 @@ sub execute
 		Let [$(i)] 	= Lookup('Variables.Definition', 'Variables.Name', '$(i)', 'Variables');
 	Next; 
 	
-	period		= Trim(SubField(Params, ' , ', 1));
-	access		= Trim(SubField(Params, ' , ', 2));
-	store		= Trim(SubField(Params, ' , ', 5)); 
+	period		= Trim(SubField(Params, ';', 1));
+	access		= Trim(SubField(Params, ';', 2));
+	store		= Trim(SubField(Params, ';', 5)); 
 	IF not IsNum(Num(Date(period))) THEN; period = $(period); ENDIF 
 	Routines 	= If(Date(period), '''e_calendar(''''$(period)'''')'', ', '') & ''''& Replace(PurgeChar(Routines, ' '), ',', ''',''') &'''';
 
