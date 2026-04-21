@@ -137,7 +137,7 @@ sub e_drop_(vars);
 endsub
 
 sub e_drop;
-	for each var in 'i', 'period', 'access', 'app', 'store', 'Params', 'Routine', 'Routines', 'mode', 'path', 'url', 'breaker', 'success', 'attempts'
+	for each var in 'i', 'p', 'period', 'access', 'app', 'store', 'Params', 'Routine', 'Routines', 'mode', 'path', 'url', 'breaker', 'success', 'attempts'
 		let [$(var)] =; 
 	next; var =; 
 endsub
