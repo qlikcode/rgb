@@ -132,8 +132,14 @@ sub e_calendar(begdate, enddate);
 	LOAD Date('$(begdate)' + IterNo() - 1) as [Date] AutoGenerate 1 While Date('$(begdate)' + IterNo() - 1) < YearEnd(AddMonths(Today(), 3)); 
 endsub
 
-sub e_drop(vars);
+sub e_drop_(vars);
 	vars = Chr(39) & Replace(vars, ',', Chr(39) & ',' & Chr(39)) & Chr(39); FOR Each var in $(vars); LET [$(var)] = Null(); NEXT; LET var = Null(); 
+endsub
+
+sub e_drop;
+	for each var in 'i', 'period', 'access', 'app', 'store', 'Params', 'Routine', 'Routines', 'mode', 'path', 'url', 'breaker', 'success', 'attempts'
+		let [$(var)] =; 
+	next; var =; 
 endsub
 
 sub execute
@@ -167,7 +173,7 @@ sub execute
 		Section Access; LOAD [ACCESS], [USERID], Trim([CITY]) as [CITY] FROM [//172.16.245.8/QlikView/QVD/XLS/SectionAccess.qvd] (qvd); Section Application;
 	EndIf
 
-	call e_drop('i,period,access,app,store,Params,Routine,Routines,mode,path,url,breaker,success,attempts'); 
+	call e_drop;//('i,period,access,app,store,Params,Routine,Routines,mode,path,url,breaker,success,attempts'); 
 
 	n = 1;
 
@@ -175,8 +181,8 @@ sub execute
 endsub
 
 Set ErrorMode=0; Drop Field [ ]; Set ErrorMode=1;
-
-call e_drop('i,period,Params,Routine,Routines,mode,path,url,breaker,success,attempts,mode,path,i'); 
+			 
+call e_drop;//('i,period,Params,Routine,Routines,mode,path,url,breaker,success,attempts,mode,path,i'); 
 
 mode =  Trim(SubField(SubField(Chr(10) & vParams & Chr(10), Chr(10) & 'LoadMode=', 2), Chr(10), 1)); 
 path = '//172.16.245.8/qlikview/git/rgb/qvs/' & Replace(DocumentName(), '.qvw', '.qvs'); 
@@ -184,7 +190,7 @@ path = '//172.16.245.8/qlikview/git/rgb/qvs/' & Replace(DocumentName(), '.qvw', 
 If mode = 'External' Then; 
 	If Len(FileSize('$(path)')) > 0 Then
 		$(include=$(path)); 
-		call e_drop('mode,path'); 
+		call e_drop;//('mode,path'); 
 		call execute
 		exit script
 	Else
@@ -192,4 +198,4 @@ If mode = 'External' Then;
 	EndIf
 EndIf
 
-call e_drop('mode,path');  
+call e_drop;//('mode,path');  
