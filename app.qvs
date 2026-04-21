@@ -137,7 +137,7 @@ sub e_drop(vars);
 	vars = Chr(39) & Replace(vars, ',', Chr(39) & ',' & Chr(39)) & Chr(39); FOR Each var in $(vars); LET [$(var)] = Null(); NEXT; LET var = Null(); 
 endsub
 
-sub e_execute(n, i, period, access, store, Params, Routines, Routine, app, vCount, vTableName)
+sub e_execute(n, i, period, access, store, Params, Routines, Routine, app, table)
 	
 	n=;
 	call e
@@ -158,9 +158,9 @@ sub e_execute(n, i, period, access, store, Params, Routines, Routine, app, vCoun
 	
 	If store = 1 Then
 		app = Left(DocumentName(), Len(DocumentName()) - 4);
-		FOR vCount = 0 to NoOfTables()-1
-			LET vTableName = TableName($(vCount));
-			STORE [$(vTableName)] INTO [\\172.16.245.8\QlikView\QVD\REP\$(app)\$(vTableName).qvd] (qvd);
+		FOR i = 0 to NoOfTables()-1
+			LET table = TableName($(i));
+			STORE [$(table)] INTO [\\172.16.245.8\QlikView\QVD\REP\$(app)\$(table).qvd] (qvd);
 		NEXT; 
 	EndIf
 
