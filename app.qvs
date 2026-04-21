@@ -151,7 +151,8 @@ sub e_execute(n, i, period, access, store, Params, Routines, Routine, app, table
 	period		= Trim(SubField(Params, ';', 1));
 	access		= Trim(SubField(Params, ';', 2));
 	store		= Trim(SubField(Params, ';', 5)); 
-	IF not IsNum(Num(Date(period))) THEN; period = $(period); ENDIF 
+
+	If not IsNum(Num(Date(period))) Then; period = $(period); EndIf 
 	Routines 	= If(Date(period), '''e_calendar(''''$(period)'''')'', ', '') & ''''& Replace(PurgeChar(Routines, ' '), ',', ''',''') &'''';
 
 	For Each Routine in $(Routines); call $(Routine); Next	
