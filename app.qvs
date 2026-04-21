@@ -137,12 +137,12 @@ sub e_drop(vars);
 	vars = Chr(39) & Replace(vars, ',', Chr(39) & ',' & Chr(39)) & Chr(39); FOR Each var in $(vars); LET [$(var)] = Null(); NEXT; LET var = Null(); 
 endsub
 
-sub execute(n, period, access, store, Routines, Routine, app, vCount, vTableName)
+sub e_execute(n, i, period, access, store, Params, Routines, Routine, app, vCount, vTableName)
 	
 	n=;
 	call e
 	
-	call e_process(x)
+	call e_process('')
 	
 	For Each i in  'Params', 'Routines'; 
 		Let [$(i)] 	= Lookup('Variables.Definition', 'Variables.Name', '$(i)', 'Variables');
@@ -185,9 +185,7 @@ sub e_script(x, mode, path, drop)
 
 			$(include=$(path)); 
 
-			call execute(x)
-			
-			//call e_drop(',drop,pathi,period,Params,Routine,Routines,mode,path,url,breaker,success,attempts,mode,path,i'); 
+			call e_execute('')
 
 			Set ErrorMode=0; Drop Field [ ]; Set ErrorMode=1;
 
@@ -198,4 +196,4 @@ sub e_script(x, mode, path, drop)
 	EndIf
 endsub
 
-call e_script(x)
+call e_script('')
