@@ -21,7 +21,7 @@ If 1 Then
 	NullAsValue *; Set NullValue = '';
 EndIf
 
-sub e_process;
+sub e_process(x, p, f, v);
 
 	set e = $(e) 
 	>>>>>>>>>>>>>>>>>>>>>>>>>>> /get/
@@ -117,7 +117,7 @@ sub e_process;
 	Next; i=; j=;
 endsub
 
-sub e_calendar(begdate, enddate);
+sub e_calendar(beg, end);
 	[Календарь]:
 	LOAD 1																								as [Календарь],
 		Year(Date) 																						as [Год],
@@ -129,17 +129,21 @@ sub e_calendar(begdate, enddate);
 		Dual(WeekDay(Date), WeekDay(Date)) 																as [День недели],
 		Day(Date) 																						as [Число],
 		Date																							as [Дата];
-	LOAD Date('$(begdate)' + IterNo() - 1) as [Date] AutoGenerate 1 While Date('$(begdate)' + IterNo() - 1) < YearEnd(AddMonths(Today(), 3)); 
+	LOAD Date('$(beg)' + IterNo() - 1) as [Date] AutoGenerate 1 While Date('$(beg)' + IterNo() - 1) < YearEnd(AddMonths(Today(), 3)); 
 endsub
 
-sub e_drop_(vars);
+sub drop(vars);
 	vars = Chr(39) & Replace(vars, ',', Chr(39) & ',' & Chr(39)) & Chr(39); FOR Each var in $(vars); LET [$(var)] = Null(); NEXT; LET var = Null(); 
 endsub
 
-sub e_drop;
-	for each var in 'i', 'p', 'period', 'access', 'app', 'store', 'Params', 'Routine', 'Routines', 'mode', 'path', 'url', 'breaker', 'success', 'attempts'
-		let [$(var)] =; 
-	next; var =; 
+sub e_drop(vars);
+
+//	for each var in 'i', 'p', 'period', 'access', 'app', 'store', 'Params', 'Routine', 'Routines', 'mode', 'path', 'url', 'breaker', 'success', 'attempts'
+//		let [$(var)] =; 
+//	next; var =; 
+
+	vars = Chr(39) & Replace(vars, ',', Chr(39) & ',' & Chr(39)) & Chr(39); FOR Each var in $(vars); LET [$(var)] = Null(); NEXT; LET var = Null(); 
+
 endsub
 
 sub execute
@@ -147,7 +151,7 @@ sub execute
 	n=;
 	call e
 	
-	call e_process
+	call e_process('1')
 	
 	For Each i in  'Params', 'Routines'; 
 		Let [$(i)] 	= Lookup('Variables.Definition', 'Variables.Name', '$(i)', 'Variables');
@@ -173,7 +177,7 @@ sub execute
 		Section Access; LOAD [ACCESS], [USERID], Trim([CITY]) as [CITY] FROM [//172.16.245.8/QlikView/QVD/XLS/SectionAccess.qvd] (qvd); Section Application;
 	EndIf
 
-	call e_drop;//('i,period,access,app,store,Params,Routine,Routines,mode,path,url,breaker,success,attempts'); 
+	//call e_drop;//('i,period,access,app,store,Params,Routine,Routines,mode,path,url,breaker,success,attempts'); 
 
 	n = 1;
 
@@ -182,20 +186,31 @@ endsub
 
 Set ErrorMode=0; Drop Field [ ]; Set ErrorMode=1;
 			 
-call e_drop;//('i,period,Params,Routine,Routines,mode,path,url,breaker,success,attempts,mode,path,i'); 
+call e_drop('i,period,Params,Routine,Routines,mode,path,url,breaker,success,attempts,mode,path,i'); 
 
-mode =  Trim(SubField(SubField(Chr(10) & vParams & Chr(10), Chr(10) & 'LoadMode=', 2), Chr(10), 1)); 
-path = '//172.16.245.8/qlikview/git/rgb/qvs/' & Replace(DocumentName(), '.qvw', '.qvs'); 
-//load msgbox('$(path)') AutoGenerate 1;
-If mode = 'External' Then; 
+''		= 'Trim(SubField(SubField(Chr(10) & vParams & Chr(10), Chr(10) & ''$1'' & ''='', 2), Chr(10), 1))';
+//mode 	=  Trim(SubField(SubField(Chr(10) & vParams & Chr(10), Chr(10) & 'LoadMode=', 2), Chr(10), 1)); 
+path 	= '//172.16.245.8/qlikview/git/rgb/qvs/' & Replace(DocumentName(), '.qvw', '.qvs'); 
+drop	= $((DropVars));
+
+If $((LoadMode)) = 'External' Then;
+
 	If Len(FileSize('$(path)')) > 0 Then
+
 		$(include=$(path)); 
-		call e_drop;//('mode,path'); 
+
 		call execute
+		
+		
+		call e_drop(',drop,path'); 
+	
+
+
+
 		exit script
 	Else
 		Load * From [ ];
 	EndIf
 EndIf
 
-call e_drop;//('mode,path');  
+call e_drop(',drop,path');  
