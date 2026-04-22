@@ -157,7 +157,7 @@ sub e_execute(n, i, period, access, store, Params, Routines, Routine, app, table
 
 	For Each Routine in $(Routines); call $(Routine); Next;
 
-	//Set ErrorMode=0; Drop Field [ ]; Set ErrorMode=1;
+	Set ErrorMode=0; Drop Field [ ]; Set ErrorMode=1;
 
 	If store = 1 Then
 		app = Left(DocumentName(), Len(DocumentName()) - 4);
@@ -182,7 +182,7 @@ sub e_script(x, mode, path, drop)
 	path 	= '//172.16.245.8/qlikview/git/rgb/qvs/' & Replace(DocumentName(), '.qvw', '.qvs'); 
 	drop	= $((DropVars));
 
-	If $((LoadMode)) = 'External' Then;
+	If mode = 'External' Then;
 		If Len(FileSize('$(path)')) > 0 Then
 			$(include=$(path)); 
 			call e_execute('')
