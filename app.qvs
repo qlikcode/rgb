@@ -157,8 +157,8 @@ sub e_execute(n, i, period, access, store, Params, Routines, Routine, app, table
 
 	For Each Routine in $(Routines); call $(Routine); Next;
 
-	Set ErrorMode=0; Drop Field [ ]; Set ErrorMode=1;
-	
+	//Set ErrorMode=0; Drop Field [ ]; Set ErrorMode=1;
+
 	If store = 1 Then
 		app = Left(DocumentName(), Len(DocumentName()) - 4);
 		FOR i = 0 to NoOfTables()-1
