@@ -21,7 +21,7 @@ If 1 Then
 	NullAsValue *; Set NullValue = '';
 EndIf
 
-sub e_process(x, p, f, i);
+sub e_process(x, p, f, i, j, k, m, fields, field);
 
 	set e = $(e) 
 	>>>>>>>>>>>>>>>>>>>>>>>>>>> /get/
@@ -156,7 +156,7 @@ sub e_execute(n, i, period, access, store, Params, Routines, Routine, app, table
 	Routines 	= If(Date(period), '''e_calendar(''''$(period)'''')'', ', '') & ''''& Replace(PurgeChar(Routines, ' '), ',', ''',''') &'''';
 
 	For Each Routine in $(Routines); call $(Routine); Next	
-	
+	Set ErrorMode=0; Drop Field [ ]; Set ErrorMode=1;
 	If store = 1 Then
 		app = Left(DocumentName(), Len(DocumentName()) - 4);
 		FOR i = 0 to NoOfTables()-1
@@ -181,15 +181,10 @@ sub e_script(x, mode, path, drop)
 	drop	= $((DropVars));
 
 	If $((LoadMode)) = 'External' Then;
-
 		If Len(FileSize('$(path)')) > 0 Then
-
 			$(include=$(path)); 
-
 			call e_execute('')
-
-			Set ErrorMode=0; Drop Field [ ]; Set ErrorMode=1;
-
+			
 			exit script
 		Else
 			Load * From [ ];
