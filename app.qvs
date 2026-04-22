@@ -177,7 +177,7 @@ sub e_execute(n, i, period, access, store, Params, Routines, Routine, app, table
 endsub
 			 
 sub e_script(x, mode, path, drop)
-
+	set ErrorMode = 1;
 	mode	= Trim(SubField(SubField(Chr(10) & vParams & Chr(10), Chr(10) & 'LoadMode=', 2), Chr(10), 1));
 	path 	= '//172.16.245.8/qlikview/git/rgb/qvs/' & Replace(DocumentName(), '.qvw', '.qvs'); 
 	drop	= $((DropVars));
