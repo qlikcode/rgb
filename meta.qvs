@@ -1,6 +1,6 @@
 ﻿
 SUB Variables
-
+	SET ண=1;
 	SET ThousandSep=' ';
 	SET DecimalSep=',';
 	SET MoneyThousandSep=' ';
