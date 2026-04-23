@@ -21,6 +21,22 @@ If 1 Then
 	NullAsValue *; Set NullValue = '';
 EndIf
 
+sub xlSheets(path);
+
+  pathCopy = Replace(path, SubField(path, '.', -2), SubField(path, '.', -2) & ' (temp)');
+  EXECUTE cmd.exe /C copy "$(path)" "$(pathCopy)";
+	SET ErrorMode = 0; // 0: Quiet, 1: Normal, 2: Verbose
+		ODBC CONNECT32 TO [Excel Files;DBQ=$(pathCopy)];
+	IF ScriptError <> 0 THEN
+	    ODBC CONNECT64 TO [Excel Files;DBQ=$(pathCopy)];
+	END IF; SET ErrorMode = 1;
+  T1: SQLTables; DISCONNECT;
+  T2: LOAD Concat(Replace(PurgeChar(TABLE_NAME, '$'), '#', '.'), ', ') as Table Resident T1 Where not TABLE_NAME like '*_FilterDatabase'; 
+  xlSheets = Peek('Table'); DROP Tables T1, T2;
+  EXECUTE cmd.exe /c del "$(pathCopy)";
+  
+endsub
+
 sub e_process(x, p, f, i, j, k, m, fields, field);
 
 	set e = $(e) 
