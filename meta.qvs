@@ -2042,7 +2042,8 @@ SUB Copy(vFileIn,vFileOut,vQvdRemotePath);								TRACE 	Копирование 
 	  	IF FileTime('$(vFileIn)') > FileTime('$(vFileOut)') THEN; EXECUTE cmd.exe /C copy "$(vFileIn)" "$(vFileOut)"; ENDIF;
 	NEXT
 ENDSUB
-
+SUB test // для проверки include
+ENDSUB
 /* IF SubStringCount(vParams, 'TestLoad=1') > 0 THEN
 	$(vCommonScriptV1)
 ENDIF  */
