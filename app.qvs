@@ -141,7 +141,7 @@ sub e_calendar(beg, end);
 		Year(Date) &' '& Dual(Month(Date), Month(Date))													as [Год Месяц],
 		Dual(Month(Date), 	Month(Date)) 																as [Месяц],
 		Num(Month(Date)) 																				as [МесяцНомер],
-		Num(String(Date(Date, 'YYYYMM')))																as [YYYYMM],
+		Num(Text(Date(Date, 'YYYYMM')))																	as [YYYYMM],
 		Year(Date) & ' ' & Num(Week(Date), '00')														as [Год Неделя],
 		Ceil((Day(Date) + WeekDay(MonthStart(Date)) - 1) / 7) & ' w'									as [Неделя],
 		Dual(WeekDay(Date), WeekDay(Date)) 																as [День недели],
