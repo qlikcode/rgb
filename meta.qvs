@@ -69,7 +69,7 @@ SUB Variables
 	LoadControl=0';//\\172.16.245.8\QlikView\QVD\CNT\ */
 	 ENDSUB
 
-	vDateStart			= Date(YearStart(Today(), -9)); //'01.01.2013');
+	vDateStart			= Date(YearStart(Today(), -7)); //'01.01.2013');
 	vDateEnd			= Date(MonthStart(AddMonths(Today(), 6))); 
 	vPlanSplitDate		= MonthStart(AddMonths(WeekStart(Date(Today() + If(Num(WeekDay(Today())) = 6, 1, 0))), - 3));
 	vPlanSplitDate		= MonthStart(AddMonths(WeekStart(Date(Today() + If(Num(WeekDay(Today())) = 6, 1, 0) + If( Date(Today()) = '04.01.2025', 2, 0) )), - 3));
